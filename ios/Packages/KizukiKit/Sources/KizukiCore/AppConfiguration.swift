@@ -22,6 +22,8 @@ public enum ConfigurationError: Error, Equatable, LocalizedError {
 /// Validation checks key format, not authenticity; the server verifies credentials.
 public struct AppConfiguration: Sendable, CustomDebugStringConvertible {
     public static let productionHost = "enosggckdxjiaqtxalhg.supabase.co"
+    /// The only approved staging project (decision 38). Any other host is rejected, even another Supabase project.
+    public static let stagingHost = "ankgfqkgflcalmlreetu.supabase.co"
     public let environment: AppEnvironment
     public let supabaseURL: URL
     public let publishableKey: String
@@ -39,8 +41,7 @@ public struct AppConfiguration: Sendable, CustomDebugStringConvertible {
                 throw ConfigurationError.unsafeEnvironment
             }
         case .staging:
-            guard parts.scheme == "https", !isLocal, host != Self.productionHost,
-                  host.hasSuffix(".supabase.co"), parts.port == nil else {
+            guard parts.scheme == "https", host == Self.stagingHost, parts.port == nil else {
                 throw ConfigurationError.unsafeEnvironment
             }
         case .production:

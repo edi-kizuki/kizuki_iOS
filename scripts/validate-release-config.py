@@ -14,13 +14,18 @@ def validate(values):
     url = urlsplit(values.get("SUPABASE_URL", ""))
     host = url.hostname or ""
     production = "enosggckdxjiaqtxalhg.supabase.co"
+    staging = "ankgfqkgflcalmlreetu.supabase.co"
+    bundle_id = "club.kizuki.ios"
     if (url.scheme != "https" or url.username or url.password or url.query or url.fragment
             or url.path not in {"", "/"} or url.port is not None):
         raise ValueError("Invalid release backend URL.")
     if environment == "production" and host != production:
         raise ValueError("Production backend does not match the approved project.")
-    if environment == "staging" and (host == production or not host.endswith(".supabase.co")):
-        raise ValueError("Staging backend must be separate from production.")
+    if environment == "staging" and host != staging:
+        raise ValueError("Staging backend does not match the approved project.")
+    # Decision 43: one app identity. TestFlight (staging) and App Store (production) both use club.kizuki.ios.
+    if values.get("PRODUCT_BUNDLE_IDENTIFIER", "") != bundle_id:
+        raise ValueError("Release bundle identifier must be club.kizuki.ios.")
     key = values.get("SUPABASE_PUBLISHABLE_KEY", "")
     public = re.fullmatch(r"sb_publishable_[A-Za-z0-9_-]{8,}", key) is not None
     if not public:

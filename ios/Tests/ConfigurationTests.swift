@@ -22,6 +22,21 @@ struct ConfigurationTests {
         }
     }
 
+    @Test func stagingAcceptsOnlyTheApprovedProject() throws {
+        let staging = try AppConfiguration(environment: .staging, url: "https://\(AppConfiguration.stagingHost)", publishableKey: key)
+        #expect(staging.environment == .staging)
+        #expect(AppConfiguration.stagingHost == "ankgfqkgflcalmlreetu.supabase.co")
+    }
+
+    @Test(arguments: ["https://otherprojectref.supabase.co", "https://ankgfqkgflcalmlreetu.supabase.co.evil.test",
+                      "https://xankgfqkgflcalmlreetu.supabase.co", "http://ankgfqkgflcalmlreetu.supabase.co",
+                      "https://ankgfqkgflcalmlreetu.supabase.co:8443", "http://127.0.0.1:54321"])
+    func stagingRejectsEveryOtherHost(_ url: String) {
+        #expect(throws: ConfigurationError.unsafeEnvironment) {
+            try AppConfiguration(environment: .staging, url: url, publishableKey: key)
+        }
+    }
+
     @Test func stagingCannotTargetProduction() {
         #expect(throws: ConfigurationError.unsafeEnvironment) {
             try AppConfiguration(environment: .staging, url: "https://enosggckdxjiaqtxalhg.supabase.co", publishableKey: key)

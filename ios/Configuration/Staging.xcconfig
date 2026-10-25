@@ -1,6 +1,5 @@
 #include "Base.xcconfig"
-KIZUKI_BUNDLE_ID = club.kizuki.ios.staging
 KIZUKI_ENVIRONMENT = staging
-SUPABASE_URL =
+SUPABASE_URL = https:/$()/ankgfqkgflcalmlreetu.supabase.co
 SUPABASE_PUBLISHABLE_KEY =
 #include? "Staging.private.xcconfig"
