@@ -7,9 +7,9 @@ struct ConfigurationTests {
 
     @Test func acceptsLocalAndSeparatesStorage() throws {
         let local = try AppConfiguration(environment: .local, url: "http://127.0.0.1:54321", publishableKey: key)
-        let production = try AppConfiguration(environment: .production,
-                                              url: "https://enosggckdxjiaqtxalhg.supabase.co", publishableKey: key)
-        #expect(local.sessionStorageKey != production.sessionStorageKey)
+        let staging = try AppConfiguration(environment: .staging,
+                                              url: "https://ankgfqkgflcalmlreetu.supabase.co", publishableKey: key)
+        #expect(local.sessionStorageKey != staging.sessionStorageKey)
         #expect(!String(reflecting: local).contains(key))
     }
 
@@ -61,6 +61,20 @@ struct ConfigurationTests {
         let elevated = try token(role: "service_role")
         #expect(throws: ConfigurationError.invalidClientKey) {
             try AppConfiguration(environment: .local, url: "http://localhost:54321", publishableKey: elevated)
+        }
+    }
+
+    @Test(arguments: ["https://other.supabase.co", "https://ankgfqkgflcalmlreetu.supabase.co.evil.test",
+                      "https://enosggckdxjiaqtxalhg.supabase.co"])
+    func stagingIsExactlyPinned(_ url: String) {
+        #expect(throws: ConfigurationError.unsafeEnvironment) {
+            try AppConfiguration(environment: .staging, url: url, publishableKey: key)
+        }
+    }
+
+    @Test func productionIsRefusedEvenWithApprovedHost() {
+        #expect(throws: ConfigurationError.unsafeEnvironment) {
+            try AppConfiguration(environment: .production, url: "https://enosggckdxjiaqtxalhg.supabase.co", publishableKey: key)
         }
     }
 
