@@ -27,6 +27,12 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
                                       global: .init(session: session, logger: nil)))
     }
 
+    /// Stops SDK token-refresh work. Call when the backend is discarded (tests) or the app is backgrounded.
+    public func stopBackgroundRefresh() {
+        let auth = client.auth
+        Task { await auth.stopAutoRefresh() }
+    }
+
     public func events() async -> AsyncStream<SessionEvent> {
         let upstream = client.auth.authStateChanges
         return AsyncStream { continuation in
