@@ -1,6 +1,9 @@
 import Foundation
 import KizukiCore
 import Supabase
+#if DEBUG
+import Security
+#endif
 
 /// Shared SDK instance: auth and PostgREST use the same refreshed session.
 public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendable {
@@ -23,7 +26,13 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
     #if DEBUG
     public static func resetAuthStorageForTesting(configuration: AppConfiguration) throws {
         guard configuration.environment == .local else { throw BackendError.identityMismatch }
-        try KeychainLocalStorage(service: "club.kizuki.ios.auth").remove(key: configuration.sessionStorageKey)
+        // SDK 2.55.4 throws even for errSecItemNotFound on both read and delete.
+        // Treat only successful deletion or an already-missing item as a clean reset.
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "club.kizuki.ios.auth",
+            kSecAttrAccount as String: configuration.sessionStorageKey]
+        let status = SecItemDelete(query as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else { throw BackendError.signOutPersistenceFailed }
     }
     #endif
 
