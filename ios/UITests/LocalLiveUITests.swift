@@ -15,7 +15,7 @@ final class LocalLiveUITests: XCTestCase {
         let (_, response) = try await URLSession.shared.data(for: request)
         XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
         let app = XCUIApplication()
-        app.launchArguments = ["-live", "-resetAuthStorage", "-screen", "home"] // Live must ignore the fixture gallery router.
+        app.launchArguments = ["-live", "-isolatedAuthStorage", "-screen", "home"] // Live must ignore the fixture gallery router.
         app.launch()
         XCTAssertTrue(app.staticTexts["entryTitle"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["entrySubtitle"].exists)

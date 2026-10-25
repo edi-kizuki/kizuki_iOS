@@ -1,9 +1,6 @@
 import Foundation
 import KizukiCore
 import Supabase
-#if DEBUG
-import Security
-#endif
 
 /// Shared SDK instance: auth and PostgREST use the same refreshed session.
 public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendable {
@@ -24,15 +21,12 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
     }
 
     #if DEBUG
-    public static func resetAuthStorageForTesting(configuration: AppConfiguration) throws {
+    /// A fresh real Keychain namespace makes local signed-out smoke tests independent of prior accounts.
+    /// No Keychain deletion or fixture auth backend; only the local SDK client uses this test service.
+    public static func localSmokeBackend(configuration: AppConfiguration) throws -> SupabaseBackend {
         guard configuration.environment == .local else { throw BackendError.identityMismatch }
-        // SDK 2.55.4 throws even for errSecItemNotFound on both read and delete.
-        // Treat only successful deletion or an already-missing item as a clean reset.
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "club.kizuki.ios.auth",
-            kSecAttrAccount as String: configuration.sessionStorageKey]
-        let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else { throw BackendError.signOutPersistenceFailed }
+        return SupabaseBackend(configuration: configuration,
+            storage: KeychainLocalStorage(service: "club.kizuki.ios.auth.local-smoke." + UUID().uuidString), session: .shared)
     }
     #endif
 

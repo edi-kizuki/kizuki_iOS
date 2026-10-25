@@ -42,10 +42,14 @@ struct KizukiApp: App {
         do {
             let values = Bundle.main.infoDictionary?.compactMapValues { $0 as? String } ?? [:]
             let configuration = try AppConfiguration(values: values)
+            let dependencies: Dependencies
             #if DEBUG
-            if arguments.contains("-resetAuthStorage") { try SupabaseBackend.resetAuthStorageForTesting(configuration: configuration) }
+            if arguments.contains("-isolatedAuthStorage") {
+                dependencies = .live(backend: try SupabaseBackend.localSmokeBackend(configuration: configuration))
+            } else { dependencies = .live(configuration: configuration) }
+            #else
+            dependencies = .live(configuration: configuration)
             #endif
-            let dependencies = Dependencies.live(configuration: configuration)
             liveDependencies = dependencies
             _session = State(initialValue: AppSession(sessions: dependencies.sessions, profiles: dependencies.profiles,
                 recovery: PasswordRecoveryState(defaults: .standard, namespace: configuration.sessionStorageKey)))

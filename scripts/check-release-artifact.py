@@ -17,7 +17,7 @@ HOSTS = {"staging": "ankgfqkgflcalmlreetu.supabase.co", "production": "enosggckd
 
 # Type, module and launch-argument names that exist only in fixture or Debug code (matches mangled Swift symbols too).
 FORBIDDEN_SYMBOLS = [b"FixtureBackend", b"FixtureData", b"FixtureIDs", b"FixtureAvatarIDs", b"UITestBackend", b"PrototypeRoot",
-                     b"KizukiTestSupport", b"GalleryScreen", b"--ui-testing", b"-fixtures"]
+                     b"KizukiTestSupport", b"GalleryScreen", b"--ui-testing", b"-fixtures", b"localSmokeBackend", b"-isolatedAuthStorage"]
 # Visible prototype copy and synthetic account data. Live screens must never ship these.
 FORBIDDEN_STRINGS = [b"mika@example.com", b"Prototype", b"prototype", b"Nothing is sent", b"Nothing was changed",
                      b"Your account was deleted", b"fixture data only", b"Sample copy", b"sample copy", b"mock toggles"]
