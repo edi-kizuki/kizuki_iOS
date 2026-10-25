@@ -38,8 +38,13 @@ public extension Dependencies {
 
     /// A single SDK client supplies both session and own-profile reads.
     static func live(backend: SupabaseBackend) -> Self {
+        live(sessions: backend, profiles: backend)
+    }
+
+    /// Allows session/profile stubs to exercise the same root with honest unavailable feature repositories.
+    static func live(sessions: any SessionRepository, profiles: any ProfileRepository) -> Self {
         let pending = UnavailableRepositories()
-        return Self(sessions: backend, profiles: backend, own: pending, directory: pending,
+        return Self(sessions: sessions, profiles: profiles, own: pending, directory: pending,
                     projects: pending, requests: pending, conversations: pending, safety: pending)
     }
 }

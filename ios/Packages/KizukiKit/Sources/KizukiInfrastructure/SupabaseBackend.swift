@@ -17,6 +17,13 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
         self.client = Self.makeClient(configuration: configuration, storage: storage, session: session)
     }
 
+    #if DEBUG
+    public static func resetAuthStorageForTesting(configuration: AppConfiguration) throws {
+        guard configuration.environment == .local else { throw BackendError.identityMismatch }
+        try KeychainLocalStorage(service: "club.kizuki.ios.auth").remove(key: configuration.sessionStorageKey)
+    }
+    #endif
+
     private static func makeClient(configuration: AppConfiguration, storage: any AuthLocalStorage,
                                    session: URLSession) -> SupabaseClient {
         SupabaseClient(supabaseURL: configuration.supabaseURL, supabaseKey: configuration.publishableKey,

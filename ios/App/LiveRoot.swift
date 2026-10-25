@@ -34,15 +34,24 @@ private struct LiveTabs: View {
         _store = State(initialValue: AppStore(dependencies: dependencies))
     }
 
+    private var unavailable: some View {
+        VStack(spacing: 20) {
+            Text("Live features are not available yet.").accessibilityIdentifier("liveUnavailable")
+            Button("Sign out") { Task { await session.signOut() } }.accessibilityIdentifier("signOutButton")
+            if session.signOutFailed { Text("Couldn’t sign out. Try again.") }
+        }
+    }
+
     var body: some View {
         Group {
             if store.isLoaded {
+                #if DEBUG
                 MainTabs().environment(store).environment(router)
+                #else
+                unavailable
+                #endif
             } else if store.lastError != nil {
-                VStack(spacing: 20) {
-                    Text("Live features are not available yet.").accessibilityIdentifier("liveUnavailable")
-                    Button("Sign out") { Task { await session.signOut() } }
-                }
+                unavailable
             } else { ProgressView("Loading…") }
         }
         .safeAreaInset(edge: .top) {

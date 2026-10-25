@@ -30,18 +30,21 @@ struct KizukiApp: App {
             return
         }
         _prototypeStore = State(initialValue: nil)
-        // UI-test launches use the foundation fixtures; `-live` launches use the SDK.
+        // UI-test launches exercise LiveRoot with explicit session/profile phases.
         if arguments.contains("--ui-testing") {
             let backend = UITestBackend()
             _session = State(initialValue: AppSession(sessions: backend, profiles: backend))
             configurationError = nil
-            liveDependencies = nil
+            liveDependencies = .live(sessions: backend, profiles: backend)
             return
         }
         #endif
         do {
             let values = Bundle.main.infoDictionary?.compactMapValues { $0 as? String } ?? [:]
             let configuration = try AppConfiguration(values: values)
+            #if DEBUG
+            if arguments.contains("-resetAuthStorage") { try SupabaseBackend.resetAuthStorageForTesting(configuration: configuration) }
+            #endif
             let dependencies = Dependencies.live(configuration: configuration)
             liveDependencies = dependencies
             _session = State(initialValue: AppSession(sessions: dependencies.sessions, profiles: dependencies.profiles,
@@ -75,14 +78,21 @@ struct KizukiApp: App {
 private struct UITestBackend: SessionRepository, ProfileRepository {
     private let userID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
     func events() async -> AsyncStream<SessionEvent> {
-        let profile = ProcessInfo.processInfo.arguments.contains("--ui-testing-profile")
+        let profile = phase != "entry"
         return AsyncStream { continuation in
             continuation.yield(profile ? .signedIn(userID: userID) : .signedOut)
             // Stay subscribed until SwiftUI cancels its root task.
         }
     }
+    private var phase: String {
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "--ui-testing-phase"), arguments.indices.contains(index + 1) { return arguments[index + 1] }
+        return arguments.contains("--ui-testing-profile") ? "eligibility" : "entry"
+    }
     func ownProfile(for userID: UUID) async throws -> Profile? {
-        Profile(id: userID, handle: "creator", displayHandle: "Creator")
+        Profile(id: userID, handle: "creator", displayHandle: "Creator",
+                onboardingCompletedAt: phase == "main" ? .distantPast : nil,
+                eligibleAt: phase == "main" || phase == "onboarding" ? .distantPast : nil)
     }
     func signOut() async throws {}
 }

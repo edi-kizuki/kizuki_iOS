@@ -7,8 +7,8 @@ import Testing
 
 /// Read-only smoke against the existing local stack. No users or schema are created.
 struct LocalLiveSessionTests {
-    @Test func localHealthAndSignedOutSession() async throws {
-        guard ProcessInfo.processInfo.environment["KIZUKI_LIVE_TESTS"] == "1" else { return }
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["KIZUKI_LIVE_TESTS"] == "1"))
+    func localHealthAndSignedOutSession() async throws {
         let configuration = try AppConfiguration(environment: .local, url: "http://127.0.0.1:54321",
             publishableKey: ProcessInfo.processInfo.environment["KIZUKI_LOCAL_PUBLIC_KEY"] ?? "")
         var request = URLRequest(url: configuration.supabaseURL.appendingPathComponent("auth/v1/health"))
