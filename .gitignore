@@ -1,0 +1,15 @@
+.DS_Store
+.build/
+.swiftpm/
+**/node_modules/
+**/*.xcodeproj/
+**/*.xcworkspace/xcuserdata/
+**/xcuserdata/
+**/*.private.xcconfig
+supabase/.temp/
+supabase/.branches/
+.env
+.env.*
+__pycache__/
+*.pyc
+.archify/
