@@ -36,3 +36,10 @@ AUTH + DELETE.
 ## Cross-model review
 
 Required (playbook rule 1: auth and deleting data; changes 3+ files). Reviewer is the other model family (D45); max two review rounds.
+
+## B01 recovery integration contract
+
+Related: [[012-b01-live-composition-seam]], [[2026-10-25-pr2-b01-review-claude]].
+
+- Call `AppSession.beginPasswordRecovery()` before `SupabaseBackend.verifyPasswordRecoveryCode(email:code:)`. SDK 2.55.4 emits `.signedIn` only for `_verifyOTP`, including `.recovery`; `.passwordRecovery` belongs to the implicit URL handler. The persisted flow binds to the verified user and environment. Call `finishPasswordRecovery()` only after the server confirms the password update.
+- B04 UI exit test: verify a recovery code, terminate before setting the password, relaunch, and require the password gate. Complete the update and verify the marker clears. B01 tests the state transitions, persistence and real SDK OTP event using isolated transport.
