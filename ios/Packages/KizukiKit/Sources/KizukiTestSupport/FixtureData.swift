@@ -45,9 +45,15 @@ public enum FixtureData {
             out.append(ProfileLink(kind: .youtube, title: "Studio process, week 12", url: "https://youtube.example/\(h)"))
             out.append(ProfileLink(kind: .instagram, title: "Instagram", url: "https://instagram.example/\(h)"))
         }
-        if i % 3 == 0 { out.append(ProfileLink(kind: .instagram, title: "Instagram", url: "https://instagram.example/\(h)")) }
+        // One link per provider: ProfileLink.id is the provider name, so a repeat would give the profile list duplicate IDs.
+        if i % 3 == 0, !out.contains(where: { $0.kind == .instagram }) {
+            out.append(ProfileLink(kind: .instagram, title: "Instagram", url: "https://instagram.example/\(h)"))
+        }
         return out
     }
+
+    /// Taste cards each fixture person shares with the "Shared taste" recommendation reason (same 0..<6 deck as `OwnProfile.tasteCards`).
+    public static func tasteCards(forPerson i: Int) -> Set<Int> { [i % 6, (i + 2) % 6] }
 
     public static let people: [Person] = names.enumerated().map { i, name in
         // The signed-in user (index 0) starts without a bio, so the "Get discovered" card has something to ask for.

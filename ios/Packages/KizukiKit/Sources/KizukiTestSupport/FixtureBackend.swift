@@ -40,12 +40,14 @@ public actor FixtureBackend: OwnProfileRepository, DirectoryRepository, ProjectR
         }
     }
     public func recommendedPeople() -> [Recommendation<Person>] {
-        FixtureData.people.dropFirst().map { person in
+        FixtureData.people.enumerated().dropFirst().map { index, person in
             var reasons: [String] = []
             if person.city == ownProfile.person.city { reasons.append("Nearby") }
             if person.realm == ownProfile.person.realm { reasons.append("Same realm") } else { reasons.append("Different realm") }
             if ownProfile.useFavouritesForMatching, person.favourites.contains(where: ownProfile.favourites.contains) { reasons.append("Shared favourites") }
-            if person.name.count % 3 == 0 { reasons.insert("Shared taste", at: 0) }
+            if ownProfile.useTasteForMatching, !FixtureData.tasteCards(forPerson: index).isDisjoint(with: ownProfile.tasteCards) {
+                reasons.insert("Shared taste", at: 0)
+            }
             return Recommendation(item: person, reasons: reasons)
         }
     }

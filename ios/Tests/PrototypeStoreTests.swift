@@ -157,4 +157,26 @@ struct PrototypeStoreTests {
                         "my-project-owner", "profile-other", "chat", "settings-delete"]
         for id in expected { #expect(script.contains(id), "missing \(id)") }
     }
+
+    @Test func everyFixtureProfileHasUniqueLinkIDs() {
+        for person in FixtureData.people {
+            let ids = person.links.map(\.id)
+            #expect(Set(ids).count == ids.count, "duplicate link IDs for \(person.name): \(ids)")
+        }
+    }
+
+    @Test func tasteSwitchControlsSharedTasteReasonsInBothLists() async throws {
+        let backend = FixtureBackend()
+        let sharedTaste: (Recommendation<Person>) -> Bool = { $0.reasons.contains("Shared taste") }
+        let projectTaste: (Recommendation<Project>) -> Bool = { $0.reasons.contains("Shared taste") }
+        var own = await backend.own()
+        own.useTasteForMatching = true
+        await backend.save(own)
+        #expect(await backend.recommendedPeople().contains(where: sharedTaste))
+        #expect(await backend.recommendedProjects().contains(where: projectTaste))
+        own.useTasteForMatching = false
+        await backend.save(own)
+        #expect(!(await backend.recommendedPeople().contains(where: sharedTaste)))
+        #expect(!(await backend.recommendedProjects().contains(where: projectTaste)))
+    }
 }
