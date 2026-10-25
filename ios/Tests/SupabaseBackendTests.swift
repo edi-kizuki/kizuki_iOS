@@ -105,7 +105,7 @@ struct SupabaseBackendTests {
         if withSession {
             // Synthetic credentials, valid only inside this intercepted test transport.
             let user = User(id: id, appMetadata: [:], userMetadata: [:], aud: "authenticated",
-                            createdAt: Date(), updatedAt: Date())
+                            createdAt: Date(), emailConfirmedAt: Date(), updatedAt: Date())
             let session = Session(accessToken: "test-access-token", tokenType: "bearer", expiresIn: 3600,
                                   expiresAt: Date().timeIntervalSince1970 + (expired ? -3600 : 3600),
                                   refreshToken: "test-refresh-token", user: user)
@@ -132,7 +132,7 @@ struct SupabaseBackendTests {
         #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer test-access-token")
         let query = URLComponents(url: try #require(request.url), resolvingAgainstBaseURL: false)?.queryItems ?? []
         #expect(query.contains(URLQueryItem(name: "id", value: "eq.\(id)")))
-        #expect(query.contains(URLQueryItem(name: "select", value: "id,handle,display_handle,avatar_path")))
+        #expect(query.contains(URLQueryItem(name: "select", value: "id,handle,display_handle,avatar_path,onboarding_completed_at,account_status,legal_acceptances(accepted_at,age_confirmed)")))
         #expect(query.contains(URLQueryItem(name: "limit", value: "1")))
     }
 
@@ -202,10 +202,56 @@ struct SupabaseBackendTests {
         #expect(try storage.retrieve(key: config.sessionStorageKey) == nil)
     }
 
+    @Test func replayCommittedContracts() async throws {
+        let directory = try #require(Bundle(for: ContractBundleMarker.self).resourceURL).appendingPathComponent("Contracts")
+        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        for file in files {
+            let recording = try JSONDecoder().decode(RepositoryContract.self, from: Data(contentsOf: file))
+            try await replay(recording)
+        }
+        // B01 permits an empty set. Directory absence is a failure, never a silently skipped replay.
+    }
+
+    @Test func replayHarnessExercisesSuccessAndFailure() async throws {
+        let body = "[{\"id\":\"\(id)\",\"handle\":\"creator\",\"legal_acceptances\":[]}]"
+        let success = RepositoryContract(version: 1, operation: "profile.own", userID: id,
+            request: .init(method: "GET", path: "/rest/v1/profiles", query: ["id": "eq.\(id)", "limit": "1",
+                "select": "id,handle,display_handle,avatar_path,onboarding_completed_at,account_status,legal_acceptances(accepted_at,age_confirmed)"]),
+            response: .init(status: 200, body: body),
+            expected: .init(profile: Profile(id: id, handle: "creator"), fails: false))
+        try await replay(success)
+        let failure = RepositoryContract(version: 1, operation: success.operation, userID: id, request: success.request,
+            response: .init(status: 403, body: "{\"code\":\"42501\",\"message\":\"permission denied\"}"),
+            expected: .init(profile: nil, fails: true))
+        try await replay(failure)
+    }
+
+    private func replay(_ recording: RepositoryContract) async throws {
+        #expect(recording.version == 1)
+        guard recording.version == 1, recording.operation == "profile.own", recording.userID == id else {
+            Issue.record("Unsupported repository contract version, operation or test identity")
+            return
+        }
+        let harness = Harness(); defer { harness.stop() }
+        harness.route.configure(body: recording.response.body, code: recording.response.status)
+        let service = try backend(harness)
+        if recording.expected.fails {
+            await #expect(throws: (any Error).self) { try await service.ownProfile(for: recording.userID) }
+        } else {
+            #expect(try await service.ownProfile(for: recording.userID) == recording.expected.profile)
+        }
+        let request = try #require(harness.route.captured().last { $0.url?.path == "/rest/v1/profiles" })
+        #expect(request.httpMethod == recording.request.method)
+        #expect(request.url?.path == recording.request.path)
+        let items = URLComponents(url: try #require(request.url), resolvingAgainstBaseURL: false)?.queryItems ?? []
+        #expect(Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") }) == recording.request.query)
+    }
+
     @Test func expiredSessionRefreshesThroughSDK() async throws {
         let harness = Harness(); defer { harness.stop() }
         let user = User(id: id, appMetadata: [:], userMetadata: [:], aud: "authenticated",
-                        createdAt: Date(), updatedAt: Date())
+                        createdAt: Date(), emailConfirmedAt: Date(), updatedAt: Date())
         let refreshed = Session(accessToken: "refreshed-test-token", tokenType: "bearer", expiresIn: 3600,
                                 expiresAt: Date().timeIntervalSince1970 + 3600,
                                 refreshToken: "rotated-test-refresh-token", user: user)

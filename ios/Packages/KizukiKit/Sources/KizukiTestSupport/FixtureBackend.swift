@@ -3,7 +3,7 @@ import Foundation
 import KizukiCore
 
 /// In-memory implementation of every repository protocol. State lives for the process lifetime.
-public actor FixtureBackend: OwnProfileRepository, DirectoryRepository, ProjectRepository, RequestRepository, ConversationRepository, SafetyRepository {
+public actor FixtureBackend: OwnProfileRepository, DirectoryRepository, ProjectRepository, RequestRepository, ConversationRepository, SafetyRepository, SessionRepository, ProfileRepository {
     private var ownProfile = FixtureData.ownProfile
     private var photoList = FixtureData.photos
     private var projectList = FixtureData.projects
@@ -11,11 +11,23 @@ public actor FixtureBackend: OwnProfileRepository, DirectoryRepository, ProjectR
     private var conversationList = FixtureData.conversations
     private var blockedSet: Set<UUID> = [FixtureData.personID(19)]
 
+    private let auth = AsyncStream<SessionEvent>.makeStream()
     public init() {}
+
+    public func events() -> AsyncStream<SessionEvent> {
+        auth.continuation.yield(.signedIn(userID: FixtureData.meID))
+        return auth.stream
+    }
+    public func signOut() { auth.continuation.yield(.signedOut) }
+    public func ownProfile(for userID: UUID) -> Profile? {
+        guard userID == FixtureData.meID else { return nil }
+        return Profile(id: userID, handle: ownProfile.person.handle, displayHandle: ownProfile.person.name,
+                       onboardingCompletedAt: .distantPast, eligibleAt: .distantPast)
+    }
 
     public nonisolated static func dependencies() -> Dependencies {
         let backend = FixtureBackend()
-        return Dependencies(own: backend, directory: backend, projects: backend, requests: backend, conversations: backend, safety: backend)
+        return Dependencies(sessions: backend, profiles: backend, own: backend, directory: backend, projects: backend, requests: backend, conversations: backend, safety: backend)
     }
 
     // MARK: OwnProfileRepository
@@ -103,5 +115,8 @@ public actor FixtureBackend: OwnProfileRepository, DirectoryRepository, ProjectR
     }
     public func unblock(_ personID: UUID) { blockedSet.remove(personID) }
     public func report(personID: UUID, reason: ReportReason, context: String) {}
+}
+public extension Dependencies {
+    static var fixture: Self { FixtureBackend.dependencies() }
 }
 #endif

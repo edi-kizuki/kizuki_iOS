@@ -9,6 +9,7 @@ import KizukiTestSupport
 @main
 struct KizukiApp: App {
     @State private var session: AppSession?
+    private let liveDependencies: Dependencies?
     private let configurationError: String?
     #if DEBUG
     // Debug launches show the fixture-backed prototype unless `-live` is passed (`-fixtures` forces it).
@@ -22,9 +23,10 @@ struct KizukiApp: App {
         let arguments = ProcessInfo.processInfo.arguments
         launchScreen = arguments.firstIndex(of: "-screen").flatMap { arguments.indices.contains($0 + 1) ? arguments[$0 + 1] : nil }
         if !arguments.contains("--ui-testing"), arguments.contains("-fixtures") || !arguments.contains("-live") {
-            _prototypeStore = State(initialValue: AppStore(dependencies: FixtureBackend.dependencies()))
+            _prototypeStore = State(initialValue: AppStore(dependencies: .fixture))
             _session = State(initialValue: nil)
             configurationError = nil
+            liveDependencies = nil
             return
         }
         _prototypeStore = State(initialValue: nil)
@@ -33,19 +35,19 @@ struct KizukiApp: App {
             let backend = UITestBackend()
             _session = State(initialValue: AppSession(sessions: backend, profiles: backend))
             configurationError = nil
+            liveDependencies = nil
             return
         }
         #endif
         do {
             let values = Bundle.main.infoDictionary?.compactMapValues { $0 as? String } ?? [:]
             let configuration = try AppConfiguration(values: values)
-            #if DEBUG
-            guard configuration.environment == .local else { throw ConfigurationError.unsafeEnvironment }
-            #endif
-            let backend = SupabaseBackend(configuration: configuration)
-            _session = State(initialValue: AppSession(sessions: backend, profiles: backend))
+            let dependencies = Dependencies.live(configuration: configuration)
+            liveDependencies = dependencies
+            _session = State(initialValue: AppSession(sessions: dependencies.sessions, profiles: dependencies.profiles))
             configurationError = nil
         } catch {
+            liveDependencies = nil
             _session = State(initialValue: nil)
             configurationError = (error as? ConfigurationError)?.errorDescription ?? "Check this build’s configuration."
         }
@@ -62,7 +64,8 @@ struct KizukiApp: App {
     }
 
     @ViewBuilder private var foundation: some View {
-        if let session { FoundationRoot(session: session) }
+        if let session, let liveDependencies { LiveRoot(session: session, dependencies: liveDependencies) }
+        else if let session { FoundationRoot(session: session) }
         else { FoundationRoot(configurationError: configurationError ?? "Check this build’s configuration.") }
     }
 }

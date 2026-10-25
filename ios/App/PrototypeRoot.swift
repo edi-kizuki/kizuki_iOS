@@ -1,4 +1,3 @@
-#if DEBUG
 import KizukiChatFeature
 import KizukiCore
 import KizukiDesignSystem
@@ -9,9 +8,12 @@ import KizukiProfileFeature
 import KizukiSearchFeature
 import KizukiSettingsFeature
 import KizukiSukiFeature
+#if DEBUG
 import KizukiTestSupport
+#endif
 import SwiftUI
 
+#if DEBUG
 /// Fixture-backed prototype shell: entry → onboarding → five tabs. Composes the feature modules (the app target is the only place
 /// that knows all of them) and resolves `AppRoute` / `AppSheet` to views. Debug builds only.
 struct PrototypeRoot: View {
@@ -48,6 +50,8 @@ struct PrototypeRoot: View {
         }
     }
 }
+
+#endif
 
 struct MainTabs: View {
     @Environment(AppStore.self) private var store
@@ -123,6 +127,7 @@ struct MainTabs: View {
     }
 }
 
+#if DEBUG
 /// Every non-entry screen id the launch router can open directly: `-screen <id>`.
 /// Entry and onboarding ids come from `EntryScreen.all`. Keep `scripts/screenshot-gallery.sh` in sync (a unit test checks it).
 enum GalleryScreen: String, CaseIterable {

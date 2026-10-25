@@ -45,6 +45,10 @@ targets:
       - name: Validate release configuration
         script: '"${SRCROOT}/../scripts/validate-release-config.sh"'
         basedOnDependencyAnalysis: false
+    postBuildScripts:
+      - name: Refuse fixture symbols in Release
+        script: '"${SRCROOT}/../scripts/check-release-symbols.sh" "${TARGET_BUILD_DIR}/${EXECUTABLE_PATH}"'
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: KizukiKit
         product: KizukiInfrastructure
@@ -75,7 +79,15 @@ targets:
   KizukiTests:
     type: bundle.unit-test
     platform: iOS
-    sources: [ios/Tests]
+    sources:
+      - path: ios/Tests
+        excludes: [Contracts]
+    preBuildScripts:
+      - name: Copy repository contracts
+        script: |
+          mkdir -p "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Contracts"
+          rsync -a --delete "${SRCROOT}/Tests/Contracts/" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Contracts/"
+        basedOnDependencyAnalysis: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: club.kizuki.ios.tests

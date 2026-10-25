@@ -40,10 +40,16 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
                 for await (event, session) in upstream {
                     guard !Task.isCancelled else { break }
                     switch event {
-                    case .initialSession, .signedIn, .tokenRefreshed, .userUpdated:
+                    case .initialSession, .signedIn, .tokenRefreshed, .userUpdated, .passwordRecovery:
                         if let session {
                             if session.isExpired {
                                 continuation.yield(.unavailable)
+                            } else if event == .passwordRecovery {
+                                continuation.yield(.passwordRecovery(userID: session.user.id))
+                            } else if event == .userUpdated {
+                                continuation.yield(.userUpdated(userID: session.user.id, emailVerified: session.user.emailConfirmedAt != nil))
+                            } else if session.user.emailConfirmedAt == nil {
+                                continuation.yield(.verificationRequired(userID: session.user.id))
                             } else {
                                 continuation.yield(.signedIn(userID: session.user.id))
                             }
@@ -78,13 +84,35 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
         // Refresh if needed before querying. A locally supplied UUID is never authorization.
         let session = try await client.auth.session
         guard session.user.id == userID else { throw BackendError.identityMismatch }
-        let rows: [Profile] = try await client.from("profiles")
-            .select("id,handle,display_handle,avatar_path")
+        let rows: [OwnProfileRow] = try await client.from("profiles")
+            .select("id,handle,display_handle,avatar_path,onboarding_completed_at,account_status,legal_acceptances(accepted_at,age_confirmed)")
             .eq("id", value: userID.uuidString)
             .limit(1)
             .execute().value
-        guard rows.first == nil || rows.first?.id == userID else { throw BackendError.identityMismatch }
-        return rows.first
+        guard let row = rows.first else { return nil }
+        guard row.profile.id == userID else { throw BackendError.identityMismatch }
+        let value = row.profile
+        return Profile(id: value.id, handle: value.handle, displayHandle: value.displayHandle, avatarPath: value.avatarPath,
+                       onboardingCompletedAt: value.onboardingCompletedAt, eligibleAt: row.eligibleAt,
+                       accountStatus: value.accountStatus, onboardingStep: value.onboardingStep)
+    }
+
+    /// Eligibility comes only from a confirmed legal acceptance, never from auth metadata.
+    private struct OwnProfileRow: Decodable {
+        let profile: Profile
+        let eligibleAt: Date?
+        private enum CodingKeys: String, CodingKey { case acceptances = "legal_acceptances" }
+        private struct Acceptance: Decodable {
+            let acceptedAt: Date
+            let ageConfirmed: Bool
+            enum CodingKeys: String, CodingKey { case acceptedAt = "accepted_at", ageConfirmed = "age_confirmed" }
+        }
+        init(from decoder: any Decoder) throws {
+            profile = try Profile(from: decoder)
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            let acceptances = try values.decode([Acceptance].self, forKey: .acceptances)
+            eligibleAt = acceptances.filter(\.ageConfirmed).map(\.acceptedAt).max()
+        }
     }
 
     private enum BackendError: Error { case identityMismatch, signOutPersistenceFailed }

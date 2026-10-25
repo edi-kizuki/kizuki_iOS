@@ -38,14 +38,17 @@ public protocol SafetyRepository: Sendable {
 }
 
 public struct Dependencies: Sendable {
+    public let sessions: any SessionRepository
+    public let profiles: any ProfileRepository
     public let own: any OwnProfileRepository
     public let directory: any DirectoryRepository
     public let projects: any ProjectRepository
     public let requests: any RequestRepository
     public let conversations: any ConversationRepository
     public let safety: any SafetyRepository
-    public init(own: any OwnProfileRepository, directory: any DirectoryRepository, projects: any ProjectRepository,
+    public init(sessions: any SessionRepository, profiles: any ProfileRepository, own: any OwnProfileRepository, directory: any DirectoryRepository, projects: any ProjectRepository,
                 requests: any RequestRepository, conversations: any ConversationRepository, safety: any SafetyRepository) {
+        self.sessions = sessions; self.profiles = profiles
         self.own = own; self.directory = directory; self.projects = projects
         self.requests = requests; self.conversations = conversations; self.safety = safety
     }
