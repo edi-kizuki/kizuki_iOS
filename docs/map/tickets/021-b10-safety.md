@@ -34,3 +34,8 @@ PRIVACY.
 ## Cross-model review
 
 Required (playbook rule 1: authorization, 3+ files; changes 3+ files). Reviewer is the other model family (D45); max two review rounds.
+
+## From VF05 (2026-10-25)
+
+See [[2026-10-25-vf05-reports-visibility]].
+- Ship report writers (`submit_report` → `private.file_report`), auto-hide, and end-to-end R and H test groups.

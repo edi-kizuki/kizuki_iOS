@@ -156,3 +156,7 @@ From [[2026-10-25-prototype-report]].
 | 63 | Search video length | Max 15 s, 720p, 15 MB. |
 | 64 | Search video playback | Autoplay muted in the grid; tap for sound. |
 | 65 | Website domain / repo | https://kizuki.club; GitHub `edi-kizuki/kizuki_web` (public). |
+| 66 | Unavailable accounts label | Suspended, deleting and deleted accounts all show as "Deleted user". |
+| 67 | Reporter hide | Permanent in v0; no "Show again". |
+| 68 | Hidden profile, existing chats | Name stub only (no bio/city) for people already chatting; history stays. Overrides the VF05 default exception E1 if it exposed the full row — implement as a stub projection, not full-row RLS access. |
+| 69 | Reported pending request | Left as is (sender sees no change), hidden for the reporter. |

@@ -33,3 +33,8 @@ ENV + PRIVACY.
 ## Cross-model review
 
 Required (playbook rule 1: changes 3+ files). Reviewer is the other model family (D45); max two review rounds.
+
+## From VF05 (2026-10-25)
+
+See [[2026-10-25-vf05-reports-visibility]].
+- Skip push when the recipient has a `reporter_hides` row for the sender/subject.

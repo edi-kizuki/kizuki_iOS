@@ -3,7 +3,7 @@ id: 013
 title: "B02 Backend backbone + test harness"
 labels: [wayfinder:build]
 status: open
-blocked_by: [034]
+blocked_by: []
 assignee:
 created: 2026-10-25
 ---
@@ -35,3 +35,9 @@ PRIVACY (definer helpers, RLS, grants).
 ## Cross-model review
 
 Required (playbook rule 1: authorization core; changes 3+ files). Reviewer is the other model family (D45); max two review rounds.
+
+## From VF05 (2026-10-25)
+
+See [[2026-10-25-vf05-reports-visibility]].
+- Ship: definer/search_path conventions, revoked default privileges, visibility core, empty report tables, strict `can_view_profile` v1, allowlist catalog test (G group).
+- Decision #68: hidden-profile exception E1 must return a name stub (no bio/city), via a stub projection.

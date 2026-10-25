@@ -28,6 +28,7 @@ Core loop v0 working end to end on mock data, native iOS on TestFlight: sign in 
 - [[002-ios-client-integrations-research]]: modules per tab, system TabView, Continue-only permission primers, YouTube/SoundCloud/Bandcamp embeds, TMDB proxy, privacy manifest needed. Report: [[2026-10-25-ios-client-integrations-research]].
 - Research follow-ups (#29–36): staging Supabase project, email+password, organization Apple account, APNs push, owner invites, daily dashboard moderation.
 - [[010-architecture-concept]] (closed): native SwiftUI app grown from the in-app prototype; all user-protecting rules in Postgres (RLS, definer RPCs with one lock order, pgTAP + race + live tests); three Edge Functions (delete-account, send-push, tmdb-proxy); SQL `recommend` (Notion v1 weights, privacy-safe reasons, cold start); Crew connections with generations and Remove from Crew; chat as Realtime envelopes + separately fetched bodies; staging `ankgfqkgflcalmlreetu` pinned, production refused in v0; 21 build slices, each provable from an empty DB plus a live Swift run for the core loop. Docs: [[2026-10-25-architecture-concept-v2]] + [[2026-10-25-architecture-concept-v2.1]], [[2026-10-25-concept-v2-changelog]].
+- [[034-vf05-reports-visibility]] (closed): `submit_report` and `private.file_report` are both definers with no EXECUTE on the callee; one visibility core applies subject liveness before any relationship branch (only E1 hidden-name and E2 deleted-author history excepted); `reporter_hides` makes every report permanent for profile, project, post, request, message and link across REST, Realtime and signed media. Doc: [[2026-10-25-vf05-reports-visibility]].
 - Decisions #37–57: canonical Figma copies, staging project, Apple enrolment deferred, Crew naming, public city and availability, D42/D49 retention, one app `club.kizuki.ios`, Wish to Collab / Join project, accept opens chat, Remove from Crew, media-only Search, Kizuki tab icons, Get discovered placement.
 
 ## Frontier (2026-10-25, after concept v2.1)
@@ -36,7 +37,7 @@ Build (B01–B21, label `wayfinder:build`): only [[012-b01-live-composition-seam
 
 Follow-ups (VF04–VF13, label `wayfinder:followup`), all unblocked and gating build slices:
 - [[033-vf04-concurrency-readiness]] → gates 017, 018, 021, 028
-- [[034-vf05-reports-visibility]] → gates 013, 021
+- [[034-vf05-reports-visibility]] (closed) → gates 013, 021
 - [[035-vf06-push-per-device]] → gates 029
 - [[036-vf07-deletion-races]] → gates 028
 - [[037-vf08-env-bootstrap]] → gates 014
