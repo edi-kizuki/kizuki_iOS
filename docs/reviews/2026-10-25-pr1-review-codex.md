@@ -63,3 +63,31 @@ The v2.1 client baseline (§3.2) explicitly adopts this prototype and requires c
 
 Reviewed head: `01929bab93f08204241b0d7fa01ddc6cff46c8a9`, `feature/ios-foundation` against `main`, [PR #1](https://github.com/edi-kizuki/kizuki_iOS/pull/1). Round 1 of at most 2. No approval was posted; no source was modified, committed or pushed. Concurrent changes to out-of-scope docs were observed near completion and left untouched.
 
+
+## Fixes for Codex review round 1
+
+Related: [[2026-10-25-architecture-concept-v2.1]]
+
+All nine findings fixed; none rejected. Verified on iPhone 17 Pro (`491ABF02-99F0-4FA8-AC1B-AFC92425C693`); the iPhone 16e was not used.
+
+| ID | Status | Commit | Fix |
+| --- | --- | --- | --- |
+| P-01 | fixed | `b8e66ce` | Staging accepts only `ankgfqkgflcalmlreetu.supabase.co` in `AppConfiguration` and `validate-release-config.py`. `Staging.xcconfig` pins the URL. Swift and Python tests cover the approved host and reject another Supabase host, suffix tricks, http and ports. |
+| P-02 | fixed | `b8e66ce` | `Staging.xcconfig` no longer overrides the bundle ID, so Staging and Release both resolve to `club.kizuki.ios` (decision 43). The build-phase validator asserts the resolved `PRODUCT_BUNDLE_IDENTIFIER`; `check-release-artifact.py` asserts it in the built `Info.plist`. |
+| P-03 | fixed | `ba61ce2` | Availability step now says everyone sees it; owner-only wording names work mode and pay preference (decision 51). Copy lives in `OnboardingCopy`; `OnboardingCopyTests` is the regression check. |
+| P-04 | fixed | `824116c` | All prototype feature modules (Onboarding, Home, Search, Suki, MyProjects, Profile, Chat, Settings) compile only under `DEBUG`, like KizukiTestSupport. `scripts/check-release-artifact.py` scans a built app for fixture symbols, prototype sentinel strings, Debug-only artifacts, bundle ID, environment and pinned URL. Negative proof: un-gating `EntryFlow.swift` made the Staging check fail on `mika@example.com`, "Prototype" and "Nothing is sent". Python tests cover the scanner. |
+| P-05 | fixed | `89e5a3f` | `scripts/check-release-build.sh Staging\|Release` builds the release-type configuration for a generic simulator with a synthetic `sb_publishable_ci_compile_only` key and runs the artifact check. CI runs it for both. The build is never launched. Missing-key and privileged-key rejection stay in `test-release-config.py`. |
+| P-06 | fixed | `c1bd10e` | Each test owns a route keyed by a request header on its own transport. Late SDK requests cannot reach another test's response or captures. Tests call `SupabaseBackend.stopBackgroundRefresh()` on exit. Event reads go through `collect(...)` with a 10 s deadline. |
+| P-07 | fixed | `1ebe6f3` | `FixtureData.links` adds Instagram only when absent. `everyFixtureProfileHasUniqueLinkIDs` checks all fixture people. |
+| P-08 | fixed | `1ebe6f3` | Person "Shared taste" now requires `useTasteForMatching` and shared fixture taste cards (`FixtureData.tasteCards(forPerson:)`). `tasteSwitchControlsSharedTasteReasonsInBothLists` covers both lists. |
+| P-09 | fixed | `adead4e` | `screenshot-gallery.sh` upper-cases the UDID, resolves its name through simctl and requires an iPhone 17 Pro class device before any boot or install. An EXIT/INT/TERM trap clears the status bar override and stops the app. `test-screenshot-gallery-guard.sh` (fake xcrun, run in CI) covers both. |
+
+Verification after fixes:
+
+- `scripts/generate-project.sh`: passed.
+- `check-ios.sh` on iPhone 17 Pro: 40 unit tests and 12 UI tests passed.
+- Debug (via tests), Staging and Release builds with signing off: passed. Artifact check passed for Staging and Release.
+- `scripts/test-release-config.py`: 10 tests passed. `scripts/test-local-guard.py` and `scripts/test-screenshot-gallery-guard.sh`: passed.
+- `scripts/supabase-local.sh test`: 10 pgTAP assertions and live local Auth/RLS checks passed.
+
+Note: `check-release-artifact.py` strips Mach-O debug-map entries before scanning. Those entries hold build-machine object paths (for example `.../KizukiTestSupport.build/.../FixtureBackend.o`), not code or data. Symbols, Swift metadata and string literals are still scanned.
