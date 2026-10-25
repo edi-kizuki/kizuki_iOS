@@ -228,6 +228,16 @@
       "href": "/diagrams/build-roadmap.html",
       "round": "architecture-round-1",
       "section": "diagrams"
+    },
+    {
+      "id": "b01-live-seam",
+      "title": "B01: live composition seam",
+      "date": "2026-10-25",
+      "type": "brief",
+      "summary": "Fixture/live composition, session scopes, contract replay and verification evidence. iOS 17 screenshots pending.",
+      "status": "to-read",
+      "href": "/docs/lanes/2026-10-25-b01-report.md",
+      "round": "foundation"
     }
   ]
 }
