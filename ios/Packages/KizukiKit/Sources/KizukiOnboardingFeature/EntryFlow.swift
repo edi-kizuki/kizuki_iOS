@@ -2,6 +2,12 @@ import KizukiCore
 import KizukiDesignSystem
 import SwiftUI
 
+/// Privacy-relevant onboarding copy, kept in one place so a unit test can pin it to the locked decisions.
+public enum OnboardingCopy {
+    /// Decision 51: availability is public on every profile. Work mode and pay preference stay owner-only.
+    public static let availability = "Everyone sees your availability on your profile. Only you see your work mode and pay preference. Change it whenever life changes."
+}
+
 /// Screens of the entry and onboarding flow. Raw values double as launch-argument screen ids.
 public enum EntryScreen: Hashable, Sendable {
     case splash, login, eligibility
@@ -258,7 +264,7 @@ public struct EntryFlow: View {
             lead("A label that helps you find the right projects. No payments happen in Kizuki.")
             ForEach(Compensation.allCases, id: \.self) { c in ChoiceRow(c.rawValue, selected: draft.compensation == c) { draft.compensation = c } }
         case .availability:
-            lead("Your availability stays private. Change it whenever life changes.")
+            lead(OnboardingCopy.availability)
             ForEach(Availability.allCases, id: \.self) { a in ChoiceRow(a.rawValue, selected: draft.availability == a) { draft.availability = a } }
         case .city:
             KizukiField("City (shown on your profile)", text: bind(\.person.city))
