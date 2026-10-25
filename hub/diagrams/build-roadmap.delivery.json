@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "395f5509-59c1-42f8-91f6-86ea2b2f4db1",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/edisonabdiel/Projects/kizuki_iOS/.archify/architecture-build-roadmap-20261025-191413/candidate.json",
+  "output": "/Users/edisonabdiel/Projects/kizuki_iOS/hub/diagrams/build-roadmap.html",
+  "specification": {
+    "sha256": "d376a725dabbcae4d86e6de3b5de54adc6f59fd0fa538ad7b9c86f78507c05d8",
+    "bytes": 9081
+  },
+  "artifact": {
+    "sha256": "e06af018c7ef8b0bbb744a4e4fa62f4f92a9786d2586df3700190cae63a2d9ee",
+    "bytes": 875279
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "a8ae02f5-f9a0-4ec6-9bfc-8df6e2e660ae",
+  "status": "current",
+  "command": "deliver",
+  "type": "erd",
+  "input": "/tmp/dm/candidate.json",
+  "output": "/Users/edisonabdiel/Projects/kizuki_iOS/hub/diagrams/data-model.html",
+  "specification": {
+    "sha256": "97866845b55146e0c671c66be18d0380bdca9af5e51b20517d94a8aa4c1aa29d",
+    "bytes": 22488
+  },
+  "artifact": {
+    "sha256": "a577fc0c36ab7a0ec2614d15d4479790545ad0b7a9c2ebff287593af4bdd9000",
+    "bytes": 974110
+  }
+}

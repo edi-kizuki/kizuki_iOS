@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "0f48e7dd-ae55-4f0b-8479-17a6d21dc245",
+  "status": "current",
+  "command": "deliver",
+  "type": "lifecycle",
+  "input": "/Users/edisonabdiel/Projects/kizuki_iOS/.archify/lifecycle-project-state-machine-20261025-170647/candidate.json",
+  "output": "/Users/edisonabdiel/Projects/kizuki_iOS/hub/diagrams/project-state-machine.html",
+  "specification": {
+    "sha256": "6cac4ab48e68c675d0e07c05f7df9451243476634770c5a1a66df5a868253473",
+    "bytes": 3310
+  },
+  "artifact": {
+    "sha256": "021993f4ffd1017b0603f3b1c8b66e09398be8ae449b64a0998a991f60aca062",
+    "bytes": 838408
+  }
+}

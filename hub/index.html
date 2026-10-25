@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light dark">
+<title>Kizuki hub</title>
+<link rel="stylesheet" href="/assets/hub.css">
+</head>
+<body>
+<header class="topbar"><div class="wrap">
+<a class="brand" href="/">Kizuki <span>hub</span></a>
+<nav><a href="/" aria-current="page">Home</a><a href="/walkthrough.html">Walkthrough</a><a href="/docs/">Repo docs</a></nav>
+</div></header>
+
+<main class="wrap">
+<section class="hero">
+<p class="eyebrow">Project hub · <span id="updated"></span></p>
+<h1>Kizuki</h1>
+<p class="lede">Every round of work lands here as cards. Open decisions first, then the latest round, then everything else. Card data lives in <code>hub/cards.json</code>.</p>
+</section>
+
+<noscript><p class="empty">This page builds from <code>cards.json</code> with JavaScript. Enable it, or open <a href="/cards.json">cards.json</a>.</p></noscript>
+
+<section class="block needs" id="needs" aria-labelledby="h-needs">
+<h2 id="h-needs">Needs your answer <small id="needs-count"></small></h2>
+<div class="cards" id="needs-cards"></div>
+</section>
+
+<section class="block" id="latest" aria-labelledby="h-latest">
+<h2 id="h-latest">Latest round: start here</h2>
+<div id="latest-body"></div>
+</section>
+
+<section class="block" id="earlier" aria-labelledby="h-earlier">
+<h2 id="h-earlier">Earlier rounds</h2>
+<div id="earlier-body"></div>
+</section>
+
+<section class="block" id="standing" aria-labelledby="h-standing">
+<h2 id="h-standing">Standing sections</h2>
+<div class="standing" id="standing-body"></div>
+</section>
+</main>
+
+<script>
+(function () {
+  var STANDING = [
+    { id: "design", title: "Design", empty: "Design systems compared side by side and landing styles land here. Tokens are not locked yet." },
+    { id: "prototypes", title: "Prototypes", empty: "No prototypes yet." },
+    { id: "diagrams", title: "Diagrams", empty: "No Archify diagrams yet." },
+    { id: "research", title: "Research", empty: "No research lanes have reported yet." },
+    { id: "map", title: "Map (Wayfinder)", empty: "The Wayfinder map does not exist yet." }
+  ];
+  var STATUS = { "needs-you": "needs you", "to-read": "to read", "decided": "decided" };
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function card(c) {
+    var a = el("a", "card" + (c.status === "needs-you" ? " needs" : ""));
+    a.href = c.href;
+    a.appendChild(el("h3", null, c.title));
+    a.appendChild(el("p", null, c.summary));
+    var m = el("div", "meta");
+    m.appendChild(el("span", "badge type", c.type));
+    m.appendChild(el("span", "badge " + (c.status === "needs-you" ? "s-needs" : c.status === "decided" ? "s-decided" : ""), STATUS[c.status] || c.status));
+    m.appendChild(el("span", null, c.date));
+    a.appendChild(m);
+    return a;
+  }
+  function grid(cards) {
+    var g = el("div", "cards");
+    cards.forEach(function (c) { g.appendChild(card(c)); });
+    return g;
+  }
+  function empty(text) { return el("p", "empty", text); }
+  function byDateDesc(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; }
+
+  function roundBlock(r, cards, latest) {
+    var box = el("article", "round" + (latest ? " latest" : ""));
+    var h = el("header");
+    var t = el("h3", null, r.title + " ");
+    t.appendChild(el("span", "badge", r.date));
+    h.appendChild(t);
+    h.appendChild(el("p", null, r.summary));
+    box.appendChild(h);
+    if (latest) {
+      if (r.brief) {
+        var b = el("a", "card"); b.href = r.brief; b.appendChild(el("h3", null, "Morning brief")); box.appendChild(b);
+      } else {
+        box.appendChild(empty("Morning brief: none written yet."));
+      }
+    }
+    if (cards.length) box.appendChild(grid(cards)); else box.appendChild(empty("No cards yet."));
+    return box;
+  }
+
+  fetch("/cards.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) {
+    document.getElementById("updated").textContent = "updated " + data.updated;
+    var all = data.cards.slice().sort(byDateDesc);
+
+    var needs = all.filter(function (c) { return c.status === "needs-you"; });
+    document.getElementById("needs-count").textContent = needs.length ? "(" + needs.length + ")" : "";
+    var nc = document.getElementById("needs-cards");
+    if (needs.length) needs.forEach(function (c) { nc.appendChild(card(c)); });
+    else nc.appendChild(empty("Nothing waiting on you."));
+
+    var rounds = data.rounds.slice().sort(byDateDesc);
+    var latest = rounds[0];
+    var inRound = function (r) {
+      return all.filter(function (c) { return c.round === r.id && c.status !== "needs-you"; });
+    };
+    var lb = document.getElementById("latest-body");
+    if (latest) lb.appendChild(roundBlock(latest, inRound(latest), true));
+    else lb.appendChild(empty("No rounds yet."));
+
+    var eb = document.getElementById("earlier-body");
+    if (rounds.length > 1) rounds.slice(1).forEach(function (r) { eb.appendChild(roundBlock(r, inRound(r), false)); });
+    else eb.appendChild(empty("No earlier rounds."));
+
+    var sb = document.getElementById("standing-body");
+    STANDING.forEach(function (s) {
+      var wrap = el("div");
+      wrap.appendChild(el("h3", null, s.title));
+      var cs = all.filter(function (c) { return c.section === s.id; });
+      wrap.appendChild(cs.length ? grid(cs) : empty(s.empty));
+      sb.appendChild(wrap);
+    });
+    var w = el("div");
+    w.appendChild(el("h3", null, "Walkthrough"));
+    w.appendChild(grid(all.filter(function (c) { return c.id === "walkthrough"; })));
+    sb.appendChild(w);
+  }).catch(function (e) {
+    document.getElementById("needs-cards").appendChild(empty("Could not load cards.json: " + e));
+  });
+})();
+</script>
+</body>
+</html>

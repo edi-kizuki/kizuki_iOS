@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light dark">
+<title>Illustration production assets · Decision · Kizuki hub</title>
+<link rel="stylesheet" href="/assets/hub.css">
+</head>
+<body>
+<header class="topbar"><div class="wrap">
+<a class="brand" href="/">Kizuki <span>hub</span></a>
+<nav><a href="/">Home</a><a href="/walkthrough.html">Walkthrough</a><a href="/docs/">Repo docs</a></nav>
+</div></header>
+<main class="wrap doc">
+<p class="crumb"><a href="/#needs">Needs your answer</a> / Illustration production assets</p>
+<p class="eyebrow">Decision · opened 2026-10-25 · <span class="badge s-needs">needs you</span></p>
+<h1 class="q">Only full-composition rasters exist in docs/design/illustrations. The app needs the characters and illustrations as separate artwork. How do we get them?</h1>
+<p class="why">The folder holds 10 raster exports (JPG/PNG) of full screens and website sections. No SVG, PDF or separated artwork. See the <a href="/docs/design/illustrations/README.md">illustrations README</a>. Needs Figma access (see the Figma access decision) unless you export them yourself.</p>
+<ol class="options" type="A">
+<li class="opt rec"><div class="letter" aria-hidden="true">A</div><div><h3><span class="sr">Option </span>A. Export each character and illustration from the Figma "Drawings" page as SVG or PDF into docs/design/illustrations/vector/ <span class="rec-tag">Recommended</span></h3><p>Clean, scalable assets for SwiftUI and the asset catalog. Needs Figma editor access or an export from you.</p></div></li>
+<li class="opt"><div class="letter" aria-hidden="true">B</div><div><h3><span class="sr">Option </span>B. Use the rasters, cropped</h3><p>Works today but at fixed resolution, with backgrounds baked in. Likely blurry or messy on device.</p></div></li>
+<li class="opt"><div class="letter" aria-hidden="true">C</div><div><h3><span class="sr">Option </span>C. Use placeholders for now</h3><p>Unblocks the build. Visual polish waits. Fine for the core-loop prototype.</p></div></li>
+</ol>
+<p class="why"><strong>Why the recommendation:</strong> Vector assets avoid rework later and match how Figma holds them. If A has to wait for access, C keeps the build moving meanwhile.</p>
+<section class="answer" data-status="open">
+<h2>Your answer</h2>
+<p>Not answered yet. Tell the agent: <code>decide illustration-assets: A</code> (or the letter you pick). The agent then sets <code>data-status="decided"</code> here, records your answer below, and moves the card to decided in <code>hub/cards.json</code>.</p>
+<p><strong>Answer:</strong> <em>none</em></p>
+</section>
+</main>
+</body>
+</html>
