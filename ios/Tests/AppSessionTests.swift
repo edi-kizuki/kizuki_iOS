@@ -253,7 +253,7 @@ struct AppSessionTests {
         events.yield(.signedIn(userID: second))
         #expect(await waitUntil { await profiles.contains(second) })
         #expect(firstScope.isCancelled)
-        #expect(await waitUntil { await probe.stopped })
+        #expect(await probe.stopped) // Activation awaited cooperative task completion.
         #expect(await probe.channelsRemoved == 1)
         #expect(await probe.cachesPurged == 1)
         await firstScope.cancel()
@@ -268,6 +268,18 @@ struct AppSessionTests {
         #expect(secondScope.isCancelled)
         #expect(await probe.channelsRemoved == 2)
         #expect(model.scope == nil)
+    }
+
+    @Test func cancellationDeadlineDoesNotBlockAccountActivationForever() async {
+        let scope = SessionScope(userID: UUID(), generation: 1, cleanupTimeout: .milliseconds(20))
+        let stuck = DeferredCleanup()
+        scope.onCancel { await stuck.wait() }
+        let start = ContinuousClock.now
+        await scope.cancel()
+        #expect(ContinuousClock.now - start < .seconds(1))
+        #expect(scope.isCancelled)
+        await stuck.finish()
+        await scope.cancel() // Timeout result remains idempotent.
     }
 
     @Test func observerCancellationAndViewRemovalCleanUpOnce() async throws {
@@ -303,4 +315,14 @@ private actor ScopeProbe {
     func stop() { stopped = true }
     func removeChannel() { channelsRemoved += 1 }
     func purgeCache() { cachesPurged += 1 }
+}
+
+private actor DeferredCleanup {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var finished = false
+    func wait() async {
+        guard !finished else { return }
+        await withCheckedContinuation { continuation = $0 }
+    }
+    func finish() { finished = true; continuation?.resume(); continuation = nil }
 }

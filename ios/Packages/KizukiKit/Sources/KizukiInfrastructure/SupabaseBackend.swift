@@ -5,15 +5,18 @@ import Supabase
 /// Shared SDK instance: auth and PostgREST use the same refreshed session.
 public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendable {
     private let client: SupabaseClient
+    private let restoreTimeout: Duration
 
     public init(configuration: AppConfiguration) {
+        restoreTimeout = .seconds(10)
         self.client = Self.makeClient(configuration: configuration,
                                       storage: KeychainLocalStorage(service: "club.kizuki.ios.auth"),
                                       session: .shared)
     }
 
     /// Explicit injection for isolated SDK transport tests; never changes the live initializer.
-    public init(configuration: AppConfiguration, storage: any AuthLocalStorage, session: URLSession) {
+    public init(configuration: AppConfiguration, storage: any AuthLocalStorage, session: URLSession, restoreTimeout: Duration = .seconds(10)) {
+        self.restoreTimeout = restoreTimeout
         self.client = Self.makeClient(configuration: configuration, storage: storage, session: session)
     }
 
@@ -40,18 +43,37 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
         Task { await auth.stopAutoRefresh() }
     }
 
+    /// B04 calls AppSession.beginPasswordRecovery() before invoking this method.
+    /// SDK 2.55.4 _verifyOTP emits signedIn only, including when type == recovery.
+    public func verifyPasswordRecoveryCode(email: String, code: String) async throws {
+        _ = try await client.auth.verifyOTP(email: email, token: code, type: .recovery)
+    }
+
     public func events() async -> AsyncStream<SessionEvent> {
         let upstream = client.auth.authStateChanges
         return AsyncStream { continuation in
             let task = Task {
+                var restorationDeadline: Task<Void, Never>?
+                defer { restorationDeadline?.cancel() }
                 for await (event, session) in upstream {
                     guard !Task.isCancelled else { break }
                     switch event {
                     case .initialSession, .signedIn, .tokenRefreshed, .userUpdated, .passwordRecovery:
                         if let session {
                             if session.isExpired {
-                                continuation.yield(.unavailable)
-                            } else if event == .passwordRecovery {
+                                // The SDK emits the expired local session BEFORE attempting refresh.
+                                // Keep the root restoring, then fail honestly if refresh never settles.
+                                if restorationDeadline == nil {
+                                    restorationDeadline = Task { [restoreTimeout] in
+                                        do { try await Task.sleep(for: restoreTimeout) } catch { return }
+                                        continuation.yield(.unavailable)
+                                    }
+                                }
+                                continue
+                            }
+                            restorationDeadline?.cancel()
+                            restorationDeadline = nil
+                            if event == .passwordRecovery {
                                 continuation.yield(.passwordRecovery(userID: session.user.id))
                             } else if event == .userUpdated {
                                 continuation.yield(.userUpdated(userID: session.user.id, emailVerified: session.user.emailConfirmedAt != nil))
@@ -61,9 +83,13 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
                                 continuation.yield(.signedIn(userID: session.user.id))
                             }
                         } else {
+                            restorationDeadline?.cancel()
+                            restorationDeadline = nil
                             continuation.yield(.signedOut)
                         }
                     case .signedOut, .userDeleted:
+                        restorationDeadline?.cancel()
+                        restorationDeadline = nil
                         continuation.yield(.signedOut)
                     default:
                         break
