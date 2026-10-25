@@ -126,13 +126,15 @@ struct SupabaseBackendTests {
         let service = try backend(harness)
         let profile = try await service.ownProfile(for: id)
         #expect(profile?.displayHandle == "Creator")
+        #expect(profile?.eligibleAt == nil)
+        #expect(profile?.onboardingCompletedAt == nil)
         let request = try #require(harness.route.captured().last { $0.url?.path == "/rest/v1/profiles" })
         #expect(request.httpMethod == "GET")
         #expect(request.value(forHTTPHeaderField: "apikey") == key)
         #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer test-access-token")
         let query = URLComponents(url: try #require(request.url), resolvingAgainstBaseURL: false)?.queryItems ?? []
         #expect(query.contains(URLQueryItem(name: "id", value: "eq.\(id)")))
-        #expect(query.contains(URLQueryItem(name: "select", value: "id,handle,display_handle,avatar_path,onboarding_completed_at,account_status,legal_acceptances(accepted_at,age_confirmed)")))
+        #expect(query.contains(URLQueryItem(name: "select", value: "id,handle,display_handle,avatar_path")))
         #expect(query.contains(URLQueryItem(name: "limit", value: "1")))
     }
 
@@ -214,10 +216,10 @@ struct SupabaseBackendTests {
     }
 
     @Test func replayHarnessExercisesSuccessAndFailure() async throws {
-        let body = "[{\"id\":\"\(id)\",\"handle\":\"creator\",\"legal_acceptances\":[]}]"
+        let body = "[{\"id\":\"\(id)\",\"handle\":\"creator\"}]"
         let success = RepositoryContract(version: 1, operation: "profile.own", userID: id,
             request: .init(method: "GET", path: "/rest/v1/profiles", query: ["id": "eq.\(id)", "limit": "1",
-                "select": "id,handle,display_handle,avatar_path,onboarding_completed_at,account_status,legal_acceptances(accepted_at,age_confirmed)"]),
+                "select": "id,handle,display_handle,avatar_path"]),
             response: .init(status: 200, body: body),
             expected: .init(profile: Profile(id: id, handle: "creator"), fails: false))
         try await replay(success)

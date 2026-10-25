@@ -219,7 +219,7 @@ struct AppSessionTests {
         #expect(await waitUntil { await profiles.contains(id) })
         await profiles.complete(id, result: .success(ready))
         #expect(await waitUntil { model.phase == .main })
-        for status in [AccountStatus.deleting, .deleted, .suspended] {
+        for status in [AccountStatus.deleting, .suspended] {
             model.refreshProfile()
             #expect(await waitUntil { await profiles.contains(id) })
             await profiles.complete(id, result: .success(Profile(id: id, accountStatus: status)))

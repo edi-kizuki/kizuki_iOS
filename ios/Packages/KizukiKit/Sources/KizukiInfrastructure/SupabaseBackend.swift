@@ -84,35 +84,15 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
         // Refresh if needed before querying. A locally supplied UUID is never authorization.
         let session = try await client.auth.session
         guard session.user.id == userID else { throw BackendError.identityMismatch }
-        let rows: [OwnProfileRow] = try await client.from("profiles")
-            .select("id,handle,display_handle,avatar_path,onboarding_completed_at,account_status,legal_acceptances(accepted_at,age_confirmed)")
+        // B01 prefix only. B02 adds lifecycle/legal acceptance columns with its migration.
+        let rows: [Profile] = try await client.from("profiles")
+            .select("id,handle,display_handle,avatar_path")
             .eq("id", value: userID.uuidString)
             .limit(1)
             .execute().value
-        guard let row = rows.first else { return nil }
-        guard row.profile.id == userID else { throw BackendError.identityMismatch }
-        let value = row.profile
-        return Profile(id: value.id, handle: value.handle, displayHandle: value.displayHandle, avatarPath: value.avatarPath,
-                       onboardingCompletedAt: value.onboardingCompletedAt, eligibleAt: row.eligibleAt,
-                       accountStatus: value.accountStatus, onboardingStep: value.onboardingStep)
-    }
-
-    /// Eligibility comes only from a confirmed legal acceptance, never from auth metadata.
-    private struct OwnProfileRow: Decodable {
-        let profile: Profile
-        let eligibleAt: Date?
-        private enum CodingKeys: String, CodingKey { case acceptances = "legal_acceptances" }
-        private struct Acceptance: Decodable {
-            let acceptedAt: Date
-            let ageConfirmed: Bool
-            enum CodingKeys: String, CodingKey { case acceptedAt = "accepted_at", ageConfirmed = "age_confirmed" }
-        }
-        init(from decoder: any Decoder) throws {
-            profile = try Profile(from: decoder)
-            let values = try decoder.container(keyedBy: CodingKeys.self)
-            let acceptances = try values.decode([Acceptance].self, forKey: .acceptances)
-            eligibleAt = acceptances.filter(\.ageConfirmed).map(\.acceptedAt).max()
-        }
+        guard let profile = rows.first else { return nil }
+        guard profile.id == userID else { throw BackendError.identityMismatch }
+        return profile
     }
 
     private enum BackendError: Error { case identityMismatch, signOutPersistenceFailed }

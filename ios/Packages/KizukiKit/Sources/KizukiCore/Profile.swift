@@ -1,7 +1,7 @@
 import Foundation
 
 public enum AccountStatus: String, Codable, Sendable {
-    case active, deleting, deleted, suspended
+    case active, deleting, suspended
 }
 
 /// Minimal own-profile projection. No private settings, emails, or auth tokens.
@@ -38,7 +38,8 @@ public struct Profile: Codable, Sendable, Equatable, Identifiable {
         onboardingCompletedAt = try values.decodeIfPresent(Date.self, forKey: .onboardingCompletedAt)
         eligibleAt = try values.decodeIfPresent(Date.self, forKey: .eligibleAt)
         accountStatus = try values.decodeIfPresent(AccountStatus.self, forKey: .accountStatus) ?? .active
-        onboardingStep = try values.decodeIfPresent(Int.self, forKey: .onboardingStep) ?? 0
+        // B05: resume from profile_settings.onboarding_state once its schema is available.
+        onboardingStep = 0
     }
 
     enum CodingKeys: String, CodingKey {
@@ -48,7 +49,6 @@ public struct Profile: Codable, Sendable, Equatable, Identifiable {
         case onboardingCompletedAt = "onboarding_completed_at"
         case eligibleAt = "eligible_at"
         case accountStatus = "account_status"
-        case onboardingStep = "onboarding_step"
     }
 }
 
