@@ -36,3 +36,8 @@ AUTH + DELETE.
 ## Cross-model review
 
 Required (playbook rule 1: auth and deleting data; changes 3+ files). Reviewer is the other model family (D45); max two review rounds.
+
+## From PR #2 review round 2 (2026-10-26)
+
+See [[2026-10-25-pr2-b01-review-claude]].
+- F-01: recovery marker needs an abort path (failed/abandoned recovery must not force the next sign-in into Set new password).

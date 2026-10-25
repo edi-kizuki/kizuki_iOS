@@ -48,3 +48,9 @@ Design: [[2026-10-25-vf08-env-bootstrap]]. Test IDs (A, G, F, E) are defined in 
 - CI: `check-env-pins.py` (G12), `check-remote-mutations.py` (G14), workflow lint (G13), no `SUPABASE_ACCESS_TOKEN` in any job.
 - Before starting: record the **production baseline** through the read-only production MCP at `docs/lanes/<date>-production-baseline.md` (migrations, tables, auth user count). Needed for L6.
 - Inputs needed from the user: staging pooler host (for `staging.pin`); Keychain items are not needed for B03 tests.
+
+## From PR #2 review round 2 (2026-10-26)
+
+See [[2026-10-25-pr2-b01-review-claude]].
+- F-05: keep the release artifact denylist current as modules are added.
+- F-04 (optional): app-level live UI smoke proving app-to-stack path.

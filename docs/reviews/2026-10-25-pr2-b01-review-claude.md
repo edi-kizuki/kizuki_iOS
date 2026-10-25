@@ -74,3 +74,66 @@ Fix in this PR, or the orchestrator defers each with a named ticket and exit tes
 Minors R-07 to R-14 can follow up.
 
 Round 2 should re-check: R-01 with a minimal-`PATH` negative control, a unit test for R-02, and a test for R-03/R-04 that uses the real SDK event order.
+
+---
+
+# Round 2 verification
+
+Related: [[012-b01-live-composition-seam]], [[015-b04-email-auth-eligibility]], [[041-vf12-prototype-decisions]], [[2026-10-25-b01-report]].
+
+Head reviewed: `6a5bbc86e3df8b62120f1f9e2e57b47ffcd275d3` (rebased onto `origin/feature/ios-foundation`, 14 commits over the base). Round 2 of 2. Read-only: the worktree was not modified (`git status` clean, ignored `ios/Kizuki.xcodeproj` regenerated only). Status key: **verified** = fix confirmed in code and by a run; **partly** = fix works but leaves a named gap; **not-fixed**.
+
+## Verification table
+
+| ID | Round 1 sev | Status | Evidence in code and runs |
+|---|---|---|---|
+| R-01 | blocker | **verified** | `check-release-symbols.sh` is gone. `scripts/check-release-artifact.py` is a pure-Python byte scanner (no `rg`, `nm`, `grep`). It scans every non-image file in the `.app`, and falls back to unstripped bytes if `strip` is missing (fails closed). Negative controls, all run by me: (1) `test-release-artifact-negative-control.py` against my fresh Debug app, under `env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin`: "real Debug fixture binary rejected (exit 1)". (2) The checker on the Debug app: errors for `FixtureBackend`, `FixtureData`, `FixtureIDs`, `Kizuki.debug.dylib`. (3) Independent: a clean Staging copy passes; patching one in-binary string to `FixtureData` gives exit 1; a `FixtureBackend` text resource gives exit 1. Note: appending bytes after the Mach-O does not trigger it, because `strip -S` drops trailing data. That is correct behaviour for real code, which lives in `__TEXT`/`__cstring`. |
+| R-02 | major | **verified** | `loadProfile` keeps the last `.loaded` profile while refreshing and on failure (`isRefreshingProfile`, `profileRefreshFailed`). `LiveTabs` stays mounted and shows an inline banner with Retry. Unit test `refreshKeepsMainAndScopeUntilNewServerEvidence` asserts `phase == .main` and `scope ===` unchanged through refresh, failure and a gate-changing refresh. A `.missing` result still correctly leaves main. |
+| R-03 | major | **partly** | The entry point exists: `AppSession.beginPasswordRecovery()`, a persisted per-environment marker (`PasswordRecoveryState`, `UserDefaults`, key from `sessionStorageKey`), bound to the first verified user and cleared by `finishPasswordRecovery()`. The test uses the real SDK order: `actualRecoveryOTPEmitsSignedInOnly` drives the real `verifyOTP(.recovery)` through the SDK and sees `.signedIn` only. The relaunch test passes. Ticket 015 records the B04 contract. Gap: the marker has no abort path, see N-01. Nothing calls `beginPasswordRecovery()` yet (B04), so the gap is not reachable in B01. |
+| R-04 | major | **verified** | `.signedIn` clears `requiresEmailVerification` for the active scope. Test `verifiedSignInClearsEmailGateForExistingScope`: `.verificationRequired` then `.signedIn` leaves `.verifyEmail` and keeps the same scope. Backend only emits `.signedIn` when `emailConfirmedAt != nil`. |
+| R-05 | major | **verified** | Option (b) chosen. The select is `id,handle,display_handle,avatar_path`. All four columns exist in `20261024000100_own_profile_foundation.sql`, and `authenticated` has select plus the `profiles_read_own` policy. The local stack no longer returns `PGRST200` for the B01 projection (anon probe: `42501`, i.e. columns resolve and only the role lacks a grant; the old lifecycle column gives `42703`). The replay test asserts the exact select string. Live users land on the eligibility placeholder until B02, which is honest. |
+| R-06 | major | **deferred (accepted)** | Transferred to ticket 041 with a concrete exit test (`testDebugDefaultAndTabBarAccessibilityScreenshots` on an iOS 17 runtime, five tab screenshots). Ticket 012 criterion rewritten to iOS 26 plus the transfer. `simctl` shows only the iOS 26.0.1 runtime. The iOS 26 half is covered: the test passes on my run (labels, single selection). Open risk carried to VF12: the iOS 17 classic bar is unverified. The deferral is by the user, as v2.1 §4.6 requires an explicit named ticket. |
+| R-07 | minor | **verified** | `foundation.yml` now runs the negative control, `test-release-runtime-guard.sh`, `check-release-build.sh Staging` and `Release`. The Staging artifact scan is also an Xcode post-build script for every non-Debug configuration (`project.yml`), so a Staging build fails closed even outside CI. Local runs: Staging builds and passes the artifact check; Release refuses production; runtime guard prints 4 cases. CI status below. |
+| R-08 | minor | **verified** | `validate-release-config.py` raises "Production configuration is disabled in v0." right after the configuration/environment match check. Python test `test_production_is_refused_even_with_valid_public_configuration`; 10 Python tests pass. `check-release-build.sh Release` passes only when the log contains that exact Xcode error and the build failed. Swift runtime refuses production independently. Two independent checks now exist. |
+| R-09 | minor | **verified** | The UI smoke requires health 200 from `127.0.0.1:54321` (with the key) before launch, and uses Debug-only `-isolatedAuthStorage` (fresh real Keychain service per launch, `local` environment only). Prior simulator sessions cannot affect it. Residual: the health call runs in the test runner, not the app, and the app with an empty Keychain still makes no network call. The author states this. Acceptable. |
+| R-10 | minor | **verified** | `@Test(.enabled(if:))`. Opt-out run (`-only-testing:KizukiTests/LocalLiveSessionTests`, no env): 0 passed, 1 skipped. Opt-in run: executed and passed. |
+| R-11 | minor | **verified** | `--ui-testing` now builds `LiveRoot` with `Dependencies.live(sessions:profiles:)` (unavailable repositories). `UITestBackend` takes `--ui-testing-phase`. New UI tests `testLiveMainShowsHonestUnavailableAndSignsOut` and `testLiveOnboardingGate` pass. Not covered in UI: the refresh-failure banner (unit-tested only), see F-04. |
+| R-12 | minor | **verified** | `SessionScope.cancel()` awaits task completion plus cleanups under one shared deadline (2 s), with the unstructured race documented. `LiveTabs` uses a structured `.task { await store.load() }`. Tests: `signOutAndAccountSwitchCancelTasksChannelsAndCaches` (task stopped before the next scope is visible) and `cancellationDeadlineDoesNotBlockAccountActivationForever`. |
+| R-13 | minor | **verified** | An expired session (initial or later) emits no event and starts a bounded timer (`restoreTimeout`, 10 s) that yields `.unavailable` only if refresh never settles; any valid session or sign-out cancels it. `expiredSessionRefreshesThroughSDK` now requires `seen == [.signedIn]` (no unavailable flash). `offlineExpiredRestoreHasBoundedUnavailableFallback` covers the fallback. |
+| R-14 | minor | **verified** | `onboarding_step` coding key removed, `onboardingStep = 0` with a `// B05:` marker, `AccountStatus` is `active, deleting, suspended`. |
+
+## New issues introduced by the fixes
+
+| ID | Sev | Where | Issue | Disposition |
+|---|---|---|---|---|
+| N-01 | minor (becomes major if B04 ignores it) | `AppSession.beginPasswordRecovery()`, `PasswordRecoveryState.begin()/isPending` | The pending marker is persisted before the code is verified, as `awaiting-verified-identity`, and the first verified identity of any sign-in binds to it. There is no `cancelPasswordRecovery()`, no expiry, and neither a failed or abandoned `verifyOTP` nor `.signedOut` clears it. A user who requests recovery, never completes it, and later signs in normally (or a different user on the same device) is forced into "Set a new password" and stays there, since the marker survives sign-out and relaunch. Unreachable in B01 (no caller, no live sign-in). | Follow-up F-01 (B04). Not a merge blocker. |
+| N-02 | nit | `LocalLiveUITests` | The health check in the test runner and the app's empty-Keychain startup are independent. A broken app-to-stack path would still pass. Same residual as R-09, now explicit. | F-04, optional. |
+
+No regression found in the other fixes. No new blocker or major issue.
+
+## Runs (iPhone 17 Pro `491ABF02-99F0-4FA8-AC1B-AFC92425C693`, iOS 26.0.1; iPhone 16e never used)
+
+- `scripts/generate-project.sh`: exit 0.
+- `xcodebuild test`, scheme `Kizuki-Local`, Debug, `TEST_RUNNER_KIZUKI_LIVE_TESTS=1`, local public key from the ignored `Local.private.xcconfig`, `-parallel-testing-enabled NO`: **TEST SUCCEEDED, 71 passed, 0 failed, 0 skipped** (55 unit in 8 suites + 16 UI). Both opt-in live tests ran against `127.0.0.1:54321` (health 200) and passed. This matches the author's count. Bundle: `.build/Round2-AllTests.xcresult`; log: `.build/round2-tests.log`.
+- Opt-out: `LocalLiveSessionTests` reports skipped (`.build/Round2-OptOut.xcresult`).
+- `scripts/check-release-build.sh Staging`: ok, artifact check passes. `scripts/check-release-build.sh Release`: ok, refused at the production barrier.
+- `scripts/test-release-config.py` (10 tests), `scripts/test-local-guard.py` (2 tests), `scripts/test-release-runtime-guard.sh` (4 cases): pass.
+- Negative controls: see R-01.
+- DerivedData: only `.build/Round2DD` (inside `.build/`), deleted after the run. Nothing created in `~/Library/Developer/Xcode/DerivedData`.
+- CI (`gh pr checks 2`): both jobs pass on head `6a5bbc8` (run 40244710707): `ios` 15m16s, including the negative control, runtime guard, Staging artifact check and Release production-refusal steps; `local-backend` 1m48s.
+
+## Verdict
+
+**Merge.**
+
+The round 1 blocker (R-01) is fixed and independently confirmed with minimal-`PATH` and in-binary negative controls. All four majors are resolved: R-02, R-04 and R-05 verified, R-03 partly (the entry point, persistence and real SDK event order are in place; the abort path is a B04 item). R-06 is deferred by the user to ticket 041 with a concrete exit test, which round 1 allowed. The minors R-07 to R-14 are verified. Local run: 71/71 including both live tests; CI is green. The only new issue (N-01) is unreachable until B04 calls `beginPasswordRecovery()` and is tracked as F-01, which B04 must pass before its own review.
+
+Conditions: none before merge. Do not close ticket 012 as fully met: the iOS 17 half lives in 041 (F-02).
+
+## Follow-up ticket briefs (no round 3)
+
+- **F-01 (ticket 015, B04): recovery marker lifecycle.** Add `AppSession.cancelPasswordRecovery()`; clear the marker when `verifyOTP(.recovery)` throws, when the user leaves the recovery flow, and on a short expiry; do not bind an "awaiting" marker to an identity that did not come from the recovery verify call (for example bind only while a `verifyPasswordRecoveryCode` call is in flight). Exit tests: begin, wrong code, normal sign-in lands in the normal phase; begin, verify, relaunch, password gate; complete update clears.
+- **F-02 (ticket 041, VF12): iOS 17 tab screenshots.** Already written into the ticket. Install an iOS 17 runtime, run `testDebugDefaultAndTabBarAccessibilityScreenshots`, review selected/unselected legibility on the classic bar.
+- **F-03 (ticket 013, B02): own-profile projection grows with the schema.** When lifecycle and legal columns land, extend the select (`onboarding_completed_at`, `account_status`, `legal_acceptances(...)`), add a recorded contract to `ios/Tests/Contracts/`, and add the exit test "B01 projection plus B02 columns succeeds against the migrated local stack". Until then every live user sees the eligibility placeholder.
+- **F-04 (any UI slice, optional): app-level coverage.** UI test for `profileRefreshError` and Retry (needs a failing stub phase), and a Debug-only reachability probe or authenticated live smoke in B04 so the app, not the test runner, proves it reaches the stack.
+- **F-05 (ticket 014, B03): keep the artifact denylist current.** `FORBIDDEN_SYMBOLS` is name-based. Each new fixture or prototype type needs an entry; add a test that fails if a `#if DEBUG`-only public type name is missing from the list, or switch to an allowlist of module names.

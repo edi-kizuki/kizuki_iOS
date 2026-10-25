@@ -45,3 +45,8 @@ See [[2026-10-25-vf05-reports-visibility]].
 ## From VF08 (2026-10-25)
 
 See [[2026-10-25-vf08-env-bootstrap]]. The environment marker is **not** a B02 migration: remove "environment marker table" from this slice. It lives in `supabase/bootstrap/env_marker.sql` (owned by [[014-b03-environment-pinning]]); `scripts/supabase-local.sh reset` applies the local marker after `db reset`. B02's migration grep must also reject `kizuki_env`.
+
+## From PR #2 review round 2 (2026-10-26)
+
+See [[2026-10-25-pr2-b01-review-claude]].
+- F-03: extend the profile select and recorded contract once B02 tables exist.
