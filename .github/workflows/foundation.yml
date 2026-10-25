@@ -39,6 +39,7 @@ jobs:
           node-version: '24'
       - run: python3 scripts/test-local-guard.py
       - run: python3 scripts/test-release-config.py
+      - run: ./scripts/test-screenshot-gallery-guard.sh
       - run: ./scripts/supabase-local.sh start
       - run: ./scripts/supabase-local.sh reset
       - run: ./scripts/supabase-local.sh test

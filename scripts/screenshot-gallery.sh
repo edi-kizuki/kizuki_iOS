@@ -33,9 +33,45 @@ BUNDLE_ID="club.kizuki.ios.local"
 DERIVED=".build/DerivedData"
 OUT="hub/prototypes"
 DATE="${KIZUKI_GALLERY_DATE:-$(date +%Y-%m-%d)}"
-UDID="${KIZUKI_GALLERY_UDID:-$(xcrun simctl list devices available | grep -E 'iPhone 17 Pro \(' | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')}"
+PROTECTED_UDID="531CA732-5B3F-444E-9C6C-D2D4585F9B8B"   # iPhone 16e: never touched
+# Resolve a UDID to its device name from simctl's own device list. Prints nothing for an unknown UDID.
+device_name() {
+  xcrun simctl list devices available -j | python3 -c '
+import json, sys
+udid = sys.argv[1].upper()
+for devices in json.load(sys.stdin).get("devices", {}).values():
+    for device in devices:
+        if device.get("udid", "").upper() == udid:
+            print(device.get("name", "")); raise SystemExit
+' "$1"
+}
+UDID="${KIZUKI_GALLERY_UDID:-}"
+if [[ -z "$UDID" ]]; then
+  UDID="$(xcrun simctl list devices available -j | python3 -c '
+import json, sys
+for devices in json.load(sys.stdin).get("devices", {}).values():
+    for device in devices:
+        if device.get("name") == "iPhone 17 Pro":
+            print(device["udid"]); raise SystemExit
+')"
+fi
 [[ -n "$UDID" ]] || { echo "No iPhone 17 Pro simulator found." >&2; exit 1; }
-[[ "$UDID" != "531CA732-5B3F-444E-9C6C-D2D4585F9B8B" ]] || { echo "Refusing to use the iPhone 16e." >&2; exit 1; }
+# Case-insensitive: a lowercase protected UDID must not slip through.
+UDID="$(printf '%s' "$UDID" | tr '[:lower:]' '[:upper:]')"
+[[ "$UDID" != "$PROTECTED_UDID" ]] || { echo "Refusing to use the iPhone 16e." >&2; exit 1; }
+# Only a real iPhone 17 Pro class simulator is accepted, checked before any boot, install or terminate.
+DEVICE_NAME="$(device_name "$UDID")"
+[[ "$DEVICE_NAME" == "iPhone 17 Pro" || "$DEVICE_NAME" == "iPhone 17 Pro Max" ]] || {
+  echo "Refusing $UDID: device is '${DEVICE_NAME:-unknown}', not an iPhone 17 Pro class simulator." >&2; exit 1; }
+
+# Always undo the status-bar override and stop the app, including on failure or interrupt.
+cleanup() {
+  xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+  xcrun simctl status_bar "$UDID" clear >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 || xcrun simctl boot "$UDID" || true
 if [[ $BUILD -eq 1 ]]; then
@@ -57,5 +93,3 @@ for id in "${IDS[@]}"; do
   xcrun simctl io "$UDID" screenshot "$OUT/$DATE-$id.png" >/dev/null 2>&1
   echo "$OUT/$DATE-$id.png"
 done
-xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
-xcrun simctl status_bar "$UDID" clear >/dev/null 2>&1 || true
