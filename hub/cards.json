@@ -231,10 +231,10 @@
     },
     {
       "id": "b01-live-seam",
-      "title": "B01: live composition seam",
-      "date": "2026-10-25",
+      "title": "B01: Claude round 1 fixes",
+      "date": "2026-10-26",
       "type": "brief",
-      "summary": "Fixture/live composition, session scopes, contract replay and verification evidence. iOS 17 screenshots pending.",
+      "summary": "Session/recovery fixes, foundation-only profile reads, enforced artifact checks and live UI coverage. iOS 17 screenshots transferred to VF12; independent round 2 pending.",
       "status": "to-read",
       "href": "/docs/lanes/2026-10-25-b01-report.md",
       "round": "foundation"
