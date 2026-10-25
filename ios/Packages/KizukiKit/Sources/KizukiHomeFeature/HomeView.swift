@@ -1,3 +1,4 @@
+#if DEBUG // Prototype screens (fixture-backed). Not compiled into Staging or Release until a live equivalent replaces them.
 import KizukiCore
 import KizukiDesignSystem
 import SwiftUI
@@ -87,3 +88,4 @@ public struct ProjectCard: View {
         .buttonStyle(.plain).accessibilityLabel("Open project, \(project.title)")
     }
 }
+#endif

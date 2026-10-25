@@ -24,6 +24,7 @@ let package = Package(
         .target(name: "KizukiDesignSystem", resources: [.process("Resources")]),
         .target(name: "KizukiFoundationFeature", dependencies: ["KizukiCore", "KizukiDesignSystem"]),
         // Fixtures and the in-memory backend. Every source file is wrapped in #if DEBUG.
+        // The prototype feature targets below follow the same rule (scripts/check-release-artifact.py enforces it).
         .target(name: "KizukiTestSupport", dependencies: ["KizukiCore"])
     ] + features.map { .target(name: "Kizuki\($0)Feature", dependencies: ["KizukiCore", "KizukiDesignSystem"]) }
 )

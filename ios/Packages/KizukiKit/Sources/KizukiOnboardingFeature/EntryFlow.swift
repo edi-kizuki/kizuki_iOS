@@ -1,3 +1,4 @@
+#if DEBUG // Prototype screens (fixture-backed). Not compiled into Staging or Release until a live equivalent replaces them.
 import KizukiCore
 import KizukiDesignSystem
 import SwiftUI
@@ -312,3 +313,4 @@ public struct EntryFlow: View {
 enum FixtureIDs {
     static func sample(_ n: Int) -> UUID { UUID(uuidString: String(format: "00000000-0000-0001-0000-%012d", n))! }
 }
+#endif

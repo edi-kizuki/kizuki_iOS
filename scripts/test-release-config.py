@@ -1,10 +1,48 @@
 import importlib.util
+import plistlib
+import tempfile
 from pathlib import Path
 import unittest
 
 spec = importlib.util.spec_from_file_location("release_config", Path(__file__).with_name("validate-release-config.py"))
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
+
+artifact_spec = importlib.util.spec_from_file_location("release_artifact", Path(__file__).with_name("check-release-artifact.py"))
+artifact = importlib.util.module_from_spec(artifact_spec)
+artifact_spec.loader.exec_module(artifact)
+
+class ReleaseArtifactTests(unittest.TestCase):
+    def make_app(self, scratch, executable=b"clean binary", **plist):
+        app = Path(scratch) / "Kizuki.app"
+        app.mkdir()
+        info = dict(CFBundleIdentifier="club.kizuki.ios", KizukiEnvironment="staging",
+                    SupabaseURL="https://ankgfqkgflcalmlreetu.supabase.co",
+                    SupabasePublishableKey="sb_publishable_ci_compile_only")
+        info.update(plist)
+        (app / "Info.plist").write_bytes(plistlib.dumps(info))
+        (app / "Kizuki").write_bytes(executable)
+        return app
+
+    def test_clean_artifact_passes(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            self.assertEqual(artifact.inspect_app(self.make_app(scratch), "staging"), [])
+
+    def test_fixture_symbols_and_prototype_strings_fail(self):
+        for payload in [b"..FixtureBackend..", b"$s10KizukiTestSupport", b"UITestBackend", b"PrototypeRoot", b"--ui-testing",
+                        b"mika@example.com", b"Prototype: any email works. Nothing is sent.", b"Your account was deleted"]:
+            with self.subTest(payload=payload), tempfile.TemporaryDirectory() as scratch:
+                self.assertTrue(artifact.inspect_app(self.make_app(scratch, executable=b"x" + payload + b"y"), "staging"))
+
+    def test_identity_environment_and_debug_artifacts_fail(self):
+        for changes in [dict(CFBundleIdentifier="club.kizuki.ios.staging"), dict(KizukiEnvironment="local"),
+                        dict(SupabaseURL="https://otherprojectref.supabase.co"), dict(SupabasePublishableKey="sb_secret_nope")]:
+            with self.subTest(changes=changes), tempfile.TemporaryDirectory() as scratch:
+                self.assertTrue(artifact.inspect_app(self.make_app(scratch, **changes), "staging"))
+        with tempfile.TemporaryDirectory() as scratch:
+            app = self.make_app(scratch)
+            (app / "Kizuki.debug.dylib").write_bytes(b"x")
+            self.assertTrue(artifact.inspect_app(app, "staging"))
 
 class ReleaseConfigurationTests(unittest.TestCase):
     def settings(self, **changes):
