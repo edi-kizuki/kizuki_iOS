@@ -91,3 +91,56 @@ Verification after fixes:
 - `scripts/supabase-local.sh test`: 10 pgTAP assertions and live local Auth/RLS checks passed.
 
 Note: `check-release-artifact.py` strips Mach-O debug-map entries before scanning. Those entries hold build-machine object paths (for example `.../KizukiTestSupport.build/.../FixtureBackend.o`), not code or data. Symbols, Swift metadata and string literals are still scanned.
+
+
+## Round 2 verification
+
+Final independent round, 2026-10-26. Reviewed local and PR head `e9f3c1bb3e59866c74827febd7a07dc57d028722` on `feature/ios-foundation`. Reviewed the eight listed fix/report commits and their resulting code. Workdir: `/Users/edisonabdiel/Projects/kizuki_iOS`. No source edits, commits, pushes, GitHub approval, or subagents. The separate B01 worktree was not accessed. Only this review section is changed.
+
+Related: [[playbook]], [[2026-10-25-architecture-concept-v2.1]]
+
+### Verification table
+
+| Finding | Status | Code and independent evidence |
+| --- | --- | --- |
+| P-01 | verified | `AppConfiguration.swift:43` requires the exact approved staging host, HTTPS and no port; common validation rejects credentials, paths, queries and fragments. `validate-release-config.py` applies the same host pin. Swift staging positive/negative tests and Python configuration tests pass. |
+| P-02 | verified | Staging inherits `club.kizuki.ios` from Base.xcconfig. Both compiled app plists have that identity. The build validator and artifact scanner independently enforce it. |
+| P-03 | verified | EntryFlow uses `OnboardingCopy.availability`, explicitly saying everyone sees availability and only the owner sees work mode/pay preference. Both copy regression tests pass. |
+| P-04 | verified | Prototype feature implementations, fixture support and prototype app composition are DEBUG-gated. Clean Staging and Release artifacts pass the scanner. Both fail after real compiled FixtureData code is added to temporary copies; details below. |
+| P-05 | verified | Foundation CI invokes `check-release-build.sh` for both Staging and Release after Debug tests. Both scripts pass locally, including post-build artifact inspection, pinned host/environment and bundle ID. Synthetic compile-only public keys are used; neither app is launched. |
+| P-06 | verified | Every Harness registers a UUID route, injects it through its own URLSession header, and unregisters it at teardown. Missing routes fail closed. Late requests cannot use another test's response or capture list. Event collection races a ten-second timeout and cancels the remaining reader. Backend tests pass. `stopBackgroundRefresh()` schedules SDK shutdown asynchronously; it does not synchronously drain outstanding work. Isolation comes from the route registry, not that shutdown timing. |
+| P-07 | verified | `FixtureData.links` checks for an existing Instagram provider. The regression test checks link ID uniqueness for every fixture person and passes. |
+| P-08 | verified | Person reasons require `useTasteForMatching` and an intersection with `tasteCards(forPerson:)`; name length is removed. The test checks positive reasons in both lists with matching enabled, then absence in both with matching disabled. It passes. |
+| P-09 | partly | Uppercasing closes the protected-UDID bypass. EXIT/INT/TERM cleanup is installed before device mutations. All five fake-xcrun guard/cleanup checks pass. However, lines 38–65 resolve only the editable simulator name, not `deviceTypeIdentifier`; the promised device-class validation remains incomplete. |
+
+### Independent checks
+
+- `scripts/check-release-build.sh Staging`: passed, including the artifact check.
+- `scripts/check-release-build.sh Release`: passed, including the artifact check.
+- `python3 scripts/test-release-config.py`: **10 tests passed**. Missing-key, privileged-key, wrong-host and wrong-identity rejection remain covered.
+- `scripts/test-screenshot-gallery-guard.sh`: **five checks passed**, using fake xcrun only.
+- `KIZUKI_TEST_DESTINATION="platform=iOS Simulator,id=491ABF02-99F0-4FA8-AC1B-AFC92425C693" scripts/check-ios.sh`: **40 Swift unit tests across six suites and 12 UI tests passed**, with `TEST SUCCEEDED` and process exit 0. Device: iPhone 17 Pro, iOS 26.0. No iPhone 16e run. Project generation also passed through the requested scripts.
+
+Artifact negative control: compiled the unchanged `FixtureData.swift` with `swiftc -emit-library -D DEBUG`, module name `KizukiTestSupport`, the built Core module, and the arm64 iOS Simulator target. The probe uses dynamic lookup for unresolved Core references and is never loaded. Copied each clean built app into `/tmp/kizuki-pr1-r2-negative/{Staging,Release}/Kizuki.app`. Both copied apps first passed the scanner (exit 0). Added `FixtureProbe.dylib` containing that compiled fixture code to each copy. Both scanner invocations then failed (exit 1), specifically reporting `FixtureData` and `KizukiTestSupport`. This exercises real Mach-O inspection, including debug-map stripping, without changing source or the clean build artifacts. It proves detection of compiled fixture code present in a bundle; it does not simulate a fully linked app with an unguarded EntryFlow.
+
+P-09 residual reproduction: used a temporary fake xcrun reporting an unrelated synthetic UDID, `name: iPhone 17 Pro`, and `deviceTypeIdentifier: com.apple.CoreSimulator.SimDeviceType.iPhone-16`. The unchanged gallery script proceeded to bootstatus, install and launch. Launch was deliberately failed by the fake; cleanup still terminated the app and cleared the override. No real device was called by this probe. The specifically forbidden iPhone 16e was never used anywhere in this review.
+
+Logs: `/tmp/kizuki-pr1-r2-staging.log`, `/tmp/kizuki-pr1-r2-release.log`, `/tmp/kizuki-pr1-r2-tests.log`. Simulator result bundle: `.build/Tests-20261026-000602.xcresult`.
+
+### New issues and follow-up ticket briefs
+
+No new application regression established from these fixes. P-09 has one remaining minor gap, rather than a newly introduced defect.
+
+- **P-09 follow-up — validate simulator type.** Read `deviceTypeIdentifier` from simctl JSON and allow only iPhone 17 Pro/Pro Max types before any mutating command. Keep normalized protected-UDID refusal and cleanup traps. Acceptance: a renamed iPhone 16/16e with any other UDID is rejected without boot/install/terminate; a renamed genuine iPhone 17 Pro is accepted; existing case-insensitive refusal and failure-cleanup tests continue passing. Priority: minor; not a foundation merge blocker.
+- The explicit prototype-contract obligations from round 1 remain assigned to B07/B08/B10/B12/VF12 and the live feature slices. This fix review does not approve those deferred behaviors as production implementations. Older-runtime appearance and spoken VoiceOver verification remain outstanding as recorded in round 1.
+
+### CI and final verdict
+
+`gh pr checks 1` at handoff for unchanged head `e9f3c1bb3e59866c74827febd7a07dc57d028722`:
+
+| Check | Status | Evidence |
+| --- | --- | --- |
+| local-backend | pass | 1m32s; [job](https://github.com/edi-kizuki/kizuki_iOS/actions/runs/40243084308/job/121318871897) |
+| ios | pending | [job](https://github.com/edi-kizuki/kizuki_iOS/actions/runs/40243084308/job/121318872064) |
+
+**Final verdict: merge.** All four major findings are verified fixed. P-05–P-08 are also verified. The P-09 residual is a minor script-hardening follow-up and does not block this foundation change. This is the code-review verdict, not a claim of completed CI: wait for the pending iOS check to pass and move the draft PR to ready before merging. No third review round. No merge or approval was performed. The report remains uncommitted.
