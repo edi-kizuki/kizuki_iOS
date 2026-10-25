@@ -20,6 +20,8 @@ jobs:
           KIZUKI_TEST_DESTINATION: platform=iOS Simulator,name=iPhone 17 Pro
         run: ./scripts/check-ios.sh
       # Release-type configurations: pinned URLs and a clearly synthetic public key. Compile-only, never launched, no backend contacted.
+      - name: Reject Debug fixture binary with minimal PATH
+        run: python3 scripts/test-release-artifact-negative-control.py .build/DerivedData/Build/Products/Debug-iphonesimulator/Kizuki.app
       - name: Verify runtime environment guards
         run: ./scripts/test-release-runtime-guard.sh
       - name: Build Staging and inspect artifact

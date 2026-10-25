@@ -11,7 +11,7 @@ case "$config" in
 esac
 # Production is deliberately unbuildable in v0. Verify the real Xcode prebuild barrier.
 ./scripts/generate-project.sh
-derived=".build/ReleaseCheck-$config"
+derived=".build/ReleaseDerivedData"
 mkdir -p .build
 log=".build/release-check-$config.log"
 set +e
