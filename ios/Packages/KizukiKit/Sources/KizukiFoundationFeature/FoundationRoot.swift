@@ -93,6 +93,10 @@ public struct FoundationRoot: View {
                     }
                 }
             }
+            if session.profileRefreshFailed {
+                Text("Couldn’t refresh your profile. Try again.").accessibilityIdentifier("profileRefreshError")
+                retryButton(session)
+            }
             Button("Sign out", role: .destructive) { Task { await session.signOut() } }
                 .buttonStyle(KizukiButtonStyle()).disabled(session.isSigningOut).accessibilityIdentifier("signOutButton")
             if session.signOutFailed {

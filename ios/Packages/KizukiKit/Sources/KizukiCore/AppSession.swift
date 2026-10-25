@@ -24,13 +24,17 @@ public final class AppSession {
     public private(set) var isPasswordRecovery = false
     public private(set) var isSigningOut = false
     public private(set) var signOutFailed = false
+    public private(set) var isRefreshingProfile = false
+    public private(set) var profileRefreshFailed = false
     @ObservationIgnored private let sessions: any SessionRepository
+    @ObservationIgnored private let recovery: PasswordRecoveryState
     @ObservationIgnored private let profiles: any ProfileRepository
     @ObservationIgnored private var profileTask: Task<Void, Never>?
     @ObservationIgnored private var isObserving = false
     @ObservationIgnored private var generation = 0
 
-    public init(sessions: any SessionRepository, profiles: any ProfileRepository) {
+    public init(sessions: any SessionRepository, profiles: any ProfileRepository, recovery: PasswordRecoveryState = PasswordRecoveryState()) {
+        self.recovery = recovery
         self.sessions = sessions
         self.profiles = profiles
     }
@@ -78,8 +82,16 @@ public final class AppSession {
         loadProfile(for: userID)
     }
 
+    /// B04 must call before verifyOTP(.recovery): SDK 2.55.4 emits signedIn only.
+    /// The next authenticated identity binds the persisted pending flow to that user.
+    public func beginPasswordRecovery() {
+        recovery.begin()
+        isPasswordRecovery = true
+    }
+
     /// B04 calls this only after the server confirms a password update.
     public func finishPasswordRecovery() {
+        if let userID = scope?.userID { recovery.finish(for: userID) }
         isPasswordRecovery = false
         refreshProfile()
     }
@@ -114,16 +126,26 @@ public final class AppSession {
             requiresEmailVerification = false
             isPasswordRecovery = false
             signOutFailed = false
+            isRefreshingProfile = false
+            profileRefreshFailed = false
             state = event == .signedOut ? .signedOut : .unavailable
             await old?.cancel()
         case .signedIn(let userID):
             await activate(userID)
+            if scope?.userID == userID {
+                requiresEmailVerification = false
+                isPasswordRecovery = recovery.isPending(for: userID)
+            }
         case .verificationRequired(let userID):
             await activate(userID)
             if scope?.userID == userID { requiresEmailVerification = true }
         case .passwordRecovery(let userID):
             await activate(userID)
-            if scope?.userID == userID { requiresEmailVerification = false; isPasswordRecovery = true }
+            if scope?.userID == userID {
+                recovery.begin(for: userID)
+                requiresEmailVerification = false
+                isPasswordRecovery = true
+            }
         case .userUpdated(let userID, let emailVerified):
             await activate(userID)
             if scope?.userID == userID {
@@ -145,7 +167,7 @@ public final class AppSession {
         guard generation == transition, !Task.isCancelled else { return }
         scope = SessionScope(userID: userID, generation: transition)
         requiresEmailVerification = false
-        isPasswordRecovery = false
+        isPasswordRecovery = recovery.isPending(for: userID)
         signOutFailed = false
         loadProfile(for: userID)
     }
@@ -154,7 +176,11 @@ public final class AppSession {
         profileTask?.cancel()
         generation += 1
         let requestGeneration = generation
-        state = .signedIn(userID: userID, profile: .loading)
+        let previous: Profile?
+        if case .signedIn(_, .loaded(let value)) = state { previous = value } else { previous = nil }
+        isRefreshingProfile = true
+        profileRefreshFailed = false
+        if previous == nil { state = .signedIn(userID: userID, profile: .loading) }
         profileTask = Task { [weak self, profiles] in
             let result: ProfileState
             do {
@@ -165,7 +191,13 @@ public final class AppSession {
                 result = .failed
             }
             guard !Task.isCancelled, let self, self.generation == requestGeneration else { return }
-            self.state = .signedIn(userID: userID, profile: result)
+            self.isRefreshingProfile = false
+            if case .failed = result, let previous {
+                self.profileRefreshFailed = true
+                self.state = .signedIn(userID: userID, profile: .loaded(previous))
+            } else {
+                self.state = .signedIn(userID: userID, profile: result)
+            }
         }
     }
 

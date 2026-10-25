@@ -29,6 +29,82 @@ struct AppSessionTests {
         return false
     }
 
+    @Test func refreshKeepsMainAndScopeUntilNewServerEvidence() async throws {
+        let (stream, events) = AsyncStream<SessionEvent>.makeStream()
+        let profiles = DeferredProfiles()
+        let model = AppSession(sessions: SessionStub(stream: stream), profiles: profiles)
+        let observer = Task { await model.observe() }
+        defer { observer.cancel(); events.finish() }
+        let id = UUID()
+        let ready = Profile(id: id, onboardingCompletedAt: .distantPast, eligibleAt: .distantPast)
+        events.yield(.signedIn(userID: id))
+        #expect(await waitUntil { await profiles.contains(id) })
+        await profiles.complete(id, result: .success(ready))
+        #expect(await waitUntil { model.phase == .main })
+        let scope = try #require(model.scope)
+        model.refreshProfile()
+        #expect(model.phase == .main)
+        #expect(model.isRefreshingProfile)
+        #expect(await waitUntil { await profiles.contains(id) })
+        await profiles.complete(id, result: .failure(StubError.failed))
+        #expect(await waitUntil { model.profileRefreshFailed })
+        #expect(model.phase == .main)
+        #expect(model.scope === scope)
+        model.refreshProfile()
+        #expect(!model.profileRefreshFailed)
+        #expect(await waitUntil { await profiles.contains(id) })
+        await profiles.complete(id, result: .success(Profile(id: id, eligibleAt: .distantPast)))
+        #expect(await waitUntil { model.phase == .onboarding(step: 0) })
+        #expect(model.scope === scope)
+    }
+
+    @Test func verifiedSignInClearsEmailGateForExistingScope() async throws {
+        let (stream, events) = AsyncStream<SessionEvent>.makeStream()
+        let profiles = DeferredProfiles()
+        let model = AppSession(sessions: SessionStub(stream: stream), profiles: profiles)
+        let observer = Task { await model.observe() }
+        defer { observer.cancel(); events.finish() }
+        let id = UUID()
+        events.yield(.verificationRequired(userID: id))
+        #expect(await waitUntil { (await profiles.contains(id)) && model.phase == .verifyEmail })
+        let scope = try #require(model.scope)
+        await profiles.complete(id, result: .success(Profile(id: id)))
+        events.yield(.signedIn(userID: id)) // verifyOTP(.signup/.emailChange) emits signedIn, not userUpdated.
+        #expect(await waitUntil { model.phase == .eligibility })
+        #expect(!model.requiresEmailVerification)
+        #expect(model.scope === scope)
+    }
+
+    @Test func recoverySignedInOnlySurvivesRelaunchAndIsBoundToUserAndEnvironment() async throws {
+        let suite = "B01-Recovery-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let id = UUID(), other = UUID()
+        let ready = Profile(id: id, onboardingCompletedAt: .distantPast, eligibleAt: .distantPast)
+        for launch in 0..<2 {
+            let (stream, events) = AsyncStream<SessionEvent>.makeStream()
+            let profiles = DeferredProfiles()
+            let recovery = PasswordRecoveryState(defaults: defaults, namespace: "local")
+            let model = AppSession(sessions: SessionStub(stream: stream), profiles: profiles, recovery: recovery)
+            if launch == 0 { model.beginPasswordRecovery() }
+            let observer = Task { await model.observe() }
+            events.yield(.signedIn(userID: id)) // Actual recovery-by-code SDK sequence.
+            #expect(await waitUntil { (await profiles.contains(id)) && model.phase == .passwordRecovery })
+            await profiles.complete(id, result: .success(ready))
+            #expect(model.phase == .passwordRecovery)
+            #expect(!recovery.isPending(for: other))
+            #expect(!PasswordRecoveryState(defaults: defaults, namespace: "staging").isPending(for: id))
+            if launch == 1 {
+                model.finishPasswordRecovery()
+                #expect(await waitUntil { await profiles.contains(id) })
+                await profiles.complete(id, result: .success(ready))
+                #expect(await waitUntil { model.phase == .main })
+            }
+            observer.cancel(); events.finish(); await observer.value
+        }
+        #expect(!PasswordRecoveryState(defaults: defaults, namespace: "local").isPending(for: id))
+    }
+
     @Test func signOutDiscardsLateProfile() async {
         let (stream, events) = AsyncStream<SessionEvent>.makeStream()
         let profiles = DeferredProfiles()

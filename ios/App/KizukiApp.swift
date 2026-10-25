@@ -44,7 +44,8 @@ struct KizukiApp: App {
             let configuration = try AppConfiguration(values: values)
             let dependencies = Dependencies.live(configuration: configuration)
             liveDependencies = dependencies
-            _session = State(initialValue: AppSession(sessions: dependencies.sessions, profiles: dependencies.profiles))
+            _session = State(initialValue: AppSession(sessions: dependencies.sessions, profiles: dependencies.profiles,
+                recovery: PasswordRecoveryState(defaults: .standard, namespace: configuration.sessionStorageKey)))
             configurationError = nil
         } catch {
             liveDependencies = nil

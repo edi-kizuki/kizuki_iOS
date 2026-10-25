@@ -45,7 +45,15 @@ private struct LiveTabs: View {
                 }
             } else { ProgressView("Loading…") }
         }
+        .safeAreaInset(edge: .top) {
+            if session.profileRefreshFailed {
+                HStack {
+                    Text("Couldn’t refresh your profile.")
+                    Button("Retry") { session.refreshProfile() }
+                }.padding().accessibilityIdentifier("profileRefreshError")
+            }
+        }
         .tint(KizukiTheme.orange)
-        .task { scope.run { await store.load() } }
+        .task { await store.load() }
     }
 }
