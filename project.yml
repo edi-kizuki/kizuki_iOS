@@ -46,8 +46,11 @@ targets:
         script: '"${SRCROOT}/../scripts/validate-release-config.sh"'
         basedOnDependencyAnalysis: false
     postBuildScripts:
-      - name: Refuse fixture symbols in Release
-        script: '"${SRCROOT}/../scripts/check-release-symbols.sh" "${TARGET_BUILD_DIR}/${EXECUTABLE_PATH}"'
+      - name: Inspect release artifact
+        script: |
+          if [ "${CONFIGURATION}" != Debug ]; then
+            python3 "${SRCROOT}/../scripts/check-release-artifact.py" "${TARGET_BUILD_DIR}/${WRAPPER_NAME}" "${KIZUKI_ENVIRONMENT}"
+          fi
         basedOnDependencyAnalysis: false
     dependencies:
       - package: KizukiKit

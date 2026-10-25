@@ -23,8 +23,6 @@ public enum ConfigurationError: Error, Equatable, LocalizedError {
 public struct AppConfiguration: Sendable, CustomDebugStringConvertible {
     public static let stagingHost = "ankgfqkgflcalmlreetu.supabase.co"
     public static let productionHost = "enosggckdxjiaqtxalhg.supabase.co"
-    /// The only approved staging project (decision 38). Any other host is rejected, even another Supabase project.
-    public static let stagingHost = "ankgfqkgflcalmlreetu.supabase.co"
     public let environment: AppEnvironment
     public let supabaseURL: URL
     public let publishableKey: String

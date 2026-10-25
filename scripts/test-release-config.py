@@ -53,8 +53,9 @@ class ReleaseConfigurationTests(unittest.TestCase):
         values.update(changes)
         return values
 
-    def test_valid_public_configuration(self):
-        module.validate(self.settings())
+    def test_production_is_refused_even_with_valid_public_configuration(self):
+        with self.assertRaisesRegex(ValueError, "Production configuration is disabled in v0"):
+            module.validate(self.settings())
 
     def test_missing_key_blocks_release(self):
         with self.assertRaises(ValueError): module.validate(self.settings(SUPABASE_PUBLISHABLE_KEY=""))

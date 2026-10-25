@@ -17,12 +17,14 @@ jobs:
       - run: brew install xcodegen
       - name: Build and test Local scheme
         env:
-          KIZUKI_TEST_DESTINATION: platform=iOS Simulator,name=iPhone 16e
+          KIZUKI_TEST_DESTINATION: platform=iOS Simulator,name=iPhone 17 Pro
         run: ./scripts/check-ios.sh
       # Release-type configurations: pinned URLs and a clearly synthetic public key. Compile-only, never launched, no backend contacted.
+      - name: Verify runtime environment guards
+        run: ./scripts/test-release-runtime-guard.sh
       - name: Build Staging and inspect artifact
         run: ./scripts/check-release-build.sh Staging
-      - name: Build Release and inspect artifact
+      - name: Verify Release refuses production
         run: ./scripts/check-release-build.sh Release
       - uses: actions/upload-artifact@v4
         if: always()
