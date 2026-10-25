@@ -41,3 +41,7 @@ Required (playbook rule 1: authorization core; changes 3+ files). Reviewer is th
 See [[2026-10-25-vf05-reports-visibility]].
 - Ship: definer/search_path conventions, revoked default privileges, visibility core, empty report tables, strict `can_view_profile` v1, allowlist catalog test (G group).
 - Decision #68: hidden-profile exception E1 must return a name stub (no bio/city), via a stub projection.
+
+## From VF08 (2026-10-25)
+
+See [[2026-10-25-vf08-env-bootstrap]]. The environment marker is **not** a B02 migration: remove "environment marker table" from this slice. It lives in `supabase/bootstrap/env_marker.sql` (owned by [[014-b03-environment-pinning]]); `scripts/supabase-local.sh reset` applies the local marker after `db reset`. B02's migration grep must also reject `kizuki_env`.
