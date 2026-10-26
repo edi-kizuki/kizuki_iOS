@@ -1,4 +1,3 @@
-// Related: [[012-b01-live-composition-seam]], [[2026-10-25-prototype-report]].
 import KizukiCore
 import KizukiDesignSystem
 import KizukiFoundationFeature

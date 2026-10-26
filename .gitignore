@@ -12,4 +12,3 @@ supabase/.branches/
 .env.*
 __pycache__/
 *.pyc
-.archify/

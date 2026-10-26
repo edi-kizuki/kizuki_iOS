@@ -1,4 +1,3 @@
-// Related: [[2026-10-25-architecture-concept-v2]], [[012-b01-live-composition-seam]].
 import Foundation
 
 /// One account generation. Register tasks, channel removals and cache purges here.
