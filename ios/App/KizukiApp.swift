@@ -9,6 +9,7 @@ import KizukiTestSupport
 @main
 struct KizukiApp: App {
     @State private var session: AppSession?
+    private let liveDependencies: Dependencies?
     private let configurationError: String?
     #if DEBUG
     // Debug launches show the fixture-backed prototype unless `-live` is passed (`-fixtures` forces it).
@@ -22,30 +23,39 @@ struct KizukiApp: App {
         let arguments = ProcessInfo.processInfo.arguments
         launchScreen = arguments.firstIndex(of: "-screen").flatMap { arguments.indices.contains($0 + 1) ? arguments[$0 + 1] : nil }
         if !arguments.contains("--ui-testing"), arguments.contains("-fixtures") || !arguments.contains("-live") {
-            _prototypeStore = State(initialValue: AppStore(dependencies: FixtureBackend.dependencies()))
+            _prototypeStore = State(initialValue: AppStore(dependencies: .fixture))
             _session = State(initialValue: nil)
             configurationError = nil
+            liveDependencies = nil
             return
         }
         _prototypeStore = State(initialValue: nil)
-        // UI-test launches use the foundation fixtures; `-live` launches use the SDK.
+        // UI-test launches exercise LiveRoot with explicit session/profile phases.
         if arguments.contains("--ui-testing") {
             let backend = UITestBackend()
             _session = State(initialValue: AppSession(sessions: backend, profiles: backend))
             configurationError = nil
+            liveDependencies = .live(sessions: backend, profiles: backend)
             return
         }
         #endif
         do {
             let values = Bundle.main.infoDictionary?.compactMapValues { $0 as? String } ?? [:]
             let configuration = try AppConfiguration(values: values)
+            let dependencies: Dependencies
             #if DEBUG
-            guard configuration.environment == .local else { throw ConfigurationError.unsafeEnvironment }
+            if arguments.contains("-isolatedAuthStorage") {
+                dependencies = .live(backend: try SupabaseBackend.localSmokeBackend(configuration: configuration))
+            } else { dependencies = .live(configuration: configuration) }
+            #else
+            dependencies = .live(configuration: configuration)
             #endif
-            let backend = SupabaseBackend(configuration: configuration)
-            _session = State(initialValue: AppSession(sessions: backend, profiles: backend))
+            liveDependencies = dependencies
+            _session = State(initialValue: AppSession(sessions: dependencies.sessions, profiles: dependencies.profiles,
+                recovery: PasswordRecoveryState(defaults: .standard, namespace: configuration.sessionStorageKey)))
             configurationError = nil
         } catch {
+            liveDependencies = nil
             _session = State(initialValue: nil)
             configurationError = (error as? ConfigurationError)?.errorDescription ?? "Check this build’s configuration."
         }
@@ -62,7 +72,8 @@ struct KizukiApp: App {
     }
 
     @ViewBuilder private var foundation: some View {
-        if let session { FoundationRoot(session: session) }
+        if let session, let liveDependencies { LiveRoot(session: session, dependencies: liveDependencies) }
+        else if let session { FoundationRoot(session: session) }
         else { FoundationRoot(configurationError: configurationError ?? "Check this build’s configuration.") }
     }
 }
@@ -71,14 +82,21 @@ struct KizukiApp: App {
 private struct UITestBackend: SessionRepository, ProfileRepository {
     private let userID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
     func events() async -> AsyncStream<SessionEvent> {
-        let profile = ProcessInfo.processInfo.arguments.contains("--ui-testing-profile")
+        let profile = phase != "entry"
         return AsyncStream { continuation in
             continuation.yield(profile ? .signedIn(userID: userID) : .signedOut)
             // Stay subscribed until SwiftUI cancels its root task.
         }
     }
+    private var phase: String {
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "--ui-testing-phase"), arguments.indices.contains(index + 1) { return arguments[index + 1] }
+        return arguments.contains("--ui-testing-profile") ? "eligibility" : "entry"
+    }
     func ownProfile(for userID: UUID) async throws -> Profile? {
-        Profile(id: userID, handle: "creator", displayHandle: "Creator")
+        Profile(id: userID, handle: "creator", displayHandle: "Creator",
+                onboardingCompletedAt: phase == "main" ? .distantPast : nil,
+                eligibleAt: phase == "main" || phase == "onboarding" ? .distantPast : nil)
     }
     func signOut() async throws {}
 }

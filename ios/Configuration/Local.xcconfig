@@ -1,5 +1,4 @@
 #include "Base.xcconfig"
-KIZUKI_BUNDLE_ID = club.kizuki.ios.local
 KIZUKI_ENVIRONMENT = local
 SUPABASE_URL = http:/$()/127.0.0.1:54321
 SUPABASE_PUBLISHABLE_KEY =

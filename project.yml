@@ -45,6 +45,13 @@ targets:
       - name: Validate release configuration
         script: '"${SRCROOT}/../scripts/validate-release-config.sh"'
         basedOnDependencyAnalysis: false
+    postBuildScripts:
+      - name: Inspect release artifact
+        script: |
+          if [ "${CONFIGURATION}" != Debug ]; then
+            python3 "${SRCROOT}/../scripts/check-release-artifact.py" "${TARGET_BUILD_DIR}/${WRAPPER_NAME}" "${KIZUKI_ENVIRONMENT}"
+          fi
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: KizukiKit
         product: KizukiInfrastructure
@@ -75,7 +82,15 @@ targets:
   KizukiTests:
     type: bundle.unit-test
     platform: iOS
-    sources: [ios/Tests]
+    sources:
+      - path: ios/Tests
+        excludes: [Contracts]
+    preBuildScripts:
+      - name: Copy repository contracts
+        script: |
+          mkdir -p "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Contracts"
+          rsync -a --delete "${SRCROOT}/Tests/Contracts/" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Contracts/"
+        basedOnDependencyAnalysis: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: club.kizuki.ios.tests

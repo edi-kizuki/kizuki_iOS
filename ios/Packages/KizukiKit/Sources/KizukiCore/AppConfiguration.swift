@@ -21,9 +21,8 @@ public enum ConfigurationError: Error, Equatable, LocalizedError {
 /// Public client configuration. Never accepts a service-role or secret key.
 /// Validation checks key format, not authenticity; the server verifies credentials.
 public struct AppConfiguration: Sendable, CustomDebugStringConvertible {
-    public static let productionHost = "enosggckdxjiaqtxalhg.supabase.co"
-    /// The only approved staging project (decision 38). Any other host is rejected, even another Supabase project.
     public static let stagingHost = "ankgfqkgflcalmlreetu.supabase.co"
+    public static let productionHost = "enosggckdxjiaqtxalhg.supabase.co"
     public let environment: AppEnvironment
     public let supabaseURL: URL
     public let publishableKey: String
@@ -37,17 +36,19 @@ public struct AppConfiguration: Sendable, CustomDebugStringConvertible {
         let isLocal = ["localhost", "127.0.0.1"].contains(host)
         switch environment {
         case .local:
+            #if !DEBUG
+            throw ConfigurationError.unsafeEnvironment
+            #else
             guard isLocal, parts.scheme == "http", parts.port == 54321 else {
                 throw ConfigurationError.unsafeEnvironment
             }
+            #endif
         case .staging:
             guard parts.scheme == "https", host == Self.stagingHost, parts.port == nil else {
                 throw ConfigurationError.unsafeEnvironment
             }
         case .production:
-            guard parts.scheme == "https", host == Self.productionHost, parts.port == nil else {
-                throw ConfigurationError.unsafeEnvironment
-            }
+            throw ConfigurationError.unsafeEnvironment
         }
         guard !publishableKey.isEmpty, !publishableKey.contains("$(") else {
             throw ConfigurationError.missing("SupabasePublishableKey")

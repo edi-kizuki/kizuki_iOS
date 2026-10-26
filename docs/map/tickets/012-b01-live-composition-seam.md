@@ -25,7 +25,7 @@ v2 §2.2 (session lifecycle, `SessionScope`); v2.1 §3.2–3.4 (B01).
 - `Dependencies.live(...)` and `.fixture` selectable by launch argument; Debug default stays fixtures; `KizukiTestSupport` stays `#if DEBUG` with a release-build symbol check.
 - `AppSession.refreshProfile()`, derived root phases (entry, verifyEmail, passwordRecovery, eligibility, onboarding, main, deleted), `SessionScope` cancels tasks and channels on sign-out and account switch: unit tests.
 - Swift contract-replay harness reads `ios/Tests/Contracts/*.json` (empty set allowed).
-- Tab bar regression (v2.1 §4.6): VoiceOver labels and screenshots on iOS 26 and iOS 17 simulators.
+- Tab bar regression (v2.1 §4.6): VoiceOver labels and screenshots on iOS 26. The iOS 17 criterion is transferred to [[041-vf12-prototype-decisions]] by the implementation task instruction (2026-10-26); no runtime download is authorized.
 - Live run reaches the signed-out entry against the local stack.
 - All 27 existing Swift tests and 6 UI tests still pass.
 

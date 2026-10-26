@@ -25,7 +25,7 @@
 <section aria-labelledby="nums">
 <h2 id="nums" class="sr">Numbers that matter</h2>
 <div class="numbers">
-<div class="num"><b>28</b><span>decisions locked</span><small><a href="/docs/context/2026-10-24-architecture-round-1-interview.md">interview</a></small></div>
+<div class="num"><b>69</b><span>decisions locked</span><small><a href="/docs/context/2026-10-24-architecture-round-1-interview.md">interview</a></small></div>
 <div class="num accent"><b>4</b><span>open, need you</span><small><a href="/#needs">home</a></small></div>
 <div class="num"><b>5</b><span>tabs</span><small>decision #19</small></div>
 <div class="num"><b>6</b><span>Figma pages</span><small><a href="/docs/design/2026-10-25-figma-full-walkthrough.md">walkthrough</a></small></div>
@@ -249,13 +249,13 @@
 <td data-l="Needs me now?">No</td>
 <td data-l="Note"></td>
 </tr>
-<tr class="">
+<tr class="is-superseded">
 <td data-l="#">17</td>
 <td data-l="Topic">Illustrations</td>
 <td data-l="Decision">User will grant the agent's Figma account editor access to <code>fLQY6jJbQ0adtsqjXd5jg2</code>.</td>
 <td data-l="Status"><span class="badge s-decided">decided</span></td>
 <td data-l="Needs me now?">No</td>
-<td data-l="Note">Decided; the access grant is a user-side action, still pending. See the Figma access decision.</td>
+<td data-l="Note">Superseded by #37. Decided; the access grant is a user-side action, still pending. See the Figma access decision.</td>
 </tr>
 <tr class="">
 <td data-l="#">18</td>
@@ -341,6 +341,334 @@
 <td data-l="#">28</td>
 <td data-l="Topic">Figma conflicts</td>
 <td data-l="Decision">Follow decisions over Figma: drop Apple/Google Pay; drop &quot;anyone can message&quot; and cold &quot;New message&quot;; Apple + email sign-in (not Google); reword event-style copy.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">29</td>
+<td data-l="Topic">TestFlight backend</td>
+<td data-l="Decision">New separate <strong>staging</strong> Supabase project, mock data only. User creates it. Production untouched. Refines #10/#18.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">30</td>
+<td data-l="Topic">Email sign-in</td>
+<td data-l="Decision">Email + password (plus Apple). Gives App Review a demo account.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">31</td>
+<td data-l="Topic">Permission primers</td>
+<td data-l="Decision">Single &quot;Continue&quot; button before each system prompt (Apple rule). Denial never blocks; manual city fallback. Refines #8.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">32</td>
+<td data-l="Topic">Tab bar</td>
+<td data-l="Decision">System <code>TabView</code>, icon-only. Not a pixel-matched custom bar.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">33</td>
+<td data-l="Topic">Apple Developer account</td>
+<td data-l="Decision">Organization (Kizuki entity). Needs legal entity, D-U-N-S, website.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">34</td>
+<td data-l="Topic">Moderation</td>
+<td data-l="Decision">User reviews reports daily in Supabase dashboard (24h target), plus auto-hide after several reports. No paid moderation API.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">35</td>
+<td data-l="Topic">Notifications</td>
+<td data-l="Decision">Real APNs push for new request, acceptance, message. Needs Apple push key + Edge Function.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">36</td>
+<td data-l="Topic">Invites</td>
+<td data-l="Decision">Project owners can invite a person; same request → accept → chat flow, both directions.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">37</td>
+<td data-l="Topic">Canonical Figma files</td>
+<td data-l="Decision">Use the copies in the user's Kizuki team (Full seat, verified: metadata, screenshot, variables all succeed). App: <code>nPqXTMCtd3OVZTSU7Y2uN3</code> (<a href="https://www.figma.com/design/nPqXTMCtd3OVZTSU7Y2uN3/Kizuki-App--Copy-">Kizuki App (Copy)</a>). Illustrations: <code>dPirB4bC1bB7KcxaacOVHG</code> (<a href="https://www.figma.com/design/dPirB4bC1bB7KcxaacOVHG/Kizuki-illustrations--Copy-">Kizuki illustrations (Copy)</a>). Originals <code>XIe9K1RrE3wgLnlBJ59p1i</code> / <code>fLQY6jJbQ0adtsqjXd5jg2</code> are superseded for agent work. Supersedes #17, #27.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">38</td>
+<td data-l="Topic">Staging Supabase</td>
+<td data-l="Decision"><code>https://ankgfqkgflcalmlreetu.supabase.co</code> (project ref <code>ankgfqkgflcalmlreetu</code>). Mock data only. Publishable key not yet supplied. Implements #29.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">39</td>
+<td data-l="Topic">Apple Developer enrolment</td>
+<td data-l="Decision">Deferred by user; not a current task.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">40</td>
+<td data-l="Topic">Suki &quot;Matches&quot; (OD-14)</td>
+<td data-l="Decision">Accepted connections (active collaborations). Pending requests in/out sit alongside.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">41</td>
+<td data-l="Topic">City on profile (OD-4)</td>
+<td data-l="Decision">Public city label only (e.g. &quot;Berlin, DE&quot;); no coordinates. Overrides Notion's private-city rule.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">42</td>
+<td data-l="Topic">Deleted user's messages (OD-7)</td>
+<td data-l="Decision">Shown as &quot;Deleted user&quot;; text kept 30 days for safety review, then erased. Supersedes the earlier agent default.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">43</td>
+<td data-l="Topic">Staging app identity (OD-5)</td>
+<td data-l="Decision">One app, bundle ID <code>club.kizuki.ios</code>; TestFlight builds point at staging. <code>Staging.xcconfig</code> must change from <code>club.kizuki.ios.staging</code>.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">44</td>
+<td data-l="Topic">Naming: accepted connections</td>
+<td data-l="Decision">Called <strong>Crew</strong> in the UI, never &quot;Matches&quot;. Applies to the Suki tab, copy, and code names where user-facing (e.g. <code>CrewView</code>). Internal matching/scoring terms may stay technical. Refines #40.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">45</td>
+<td data-l="Topic">Agent rotation</td>
+<td data-l="Decision">Alternate Codex and Claude agents and models by task complexity, type and daily/weekly usage (playbook section 8, rule 2).</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">46</td>
+<td data-l="Topic">Staging plan (OD-16)</td>
+<td data-l="Decision">Supabase Free while building; upgrade staging to Pro before external testers.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">47</td>
+<td data-l="Topic">Apple/email collision (OD-17)</td>
+<td data-l="Decision">Accept Supabase automatic identity linking; tell the user immediately, with Undo.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">48</td>
+<td data-l="Topic">Favourites in matching (OD-18)</td>
+<td data-l="Decision">On by default, visible toggle in settings.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">49</td>
+<td data-l="Topic">Reported messages of deleted users (OD-20)</td>
+<td data-l="Decision">Text kept until the open report closes, then erased. Legal confirmation needed before public launch.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="is-superseded">
+<td data-l="#">50</td>
+<td data-l="Topic">Availability / work mode visibility (OD-19)</td>
+<td data-l="Decision">Owner-only for now; revisit in the design round (Figma shows an availability card).</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note">Superseded by #51.</td>
+</tr>
+<tr class="">
+<td data-l="#">51</td>
+<td data-l="Topic">Availability visibility</td>
+<td data-l="Decision">Shown on every profile, always (public). Supersedes #50 and the owner-only rule for availability. Work mode follows the concept unless the user says otherwise.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">52</td>
+<td data-l="Topic">Request wording</td>
+<td data-l="Decision">From a person's profile: <strong>&quot;Wish to Collab&quot;</strong> (allowed without a project). From a project: <strong>&quot;Join project&quot;</strong>.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">53</td>
+<td data-l="Topic">Accept → chat</td>
+<td data-l="Decision">Accepting opens the chat immediately.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">54</td>
+<td data-l="Topic">Remove from Crew</td>
+<td data-l="Decision">Separate &quot;Remove from Crew&quot; action, distinct from Block.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">55</td>
+<td data-l="Topic">Search content</td>
+<td data-l="Decision">Photos or short videos only; no people results.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">56</td>
+<td data-l="Topic">Tab bar</td>
+<td data-l="Decision">Keep the iOS 26 floating tab bar, with Kizuki's own icons (icon sheet attachment <code>37fb3c48-...-06dd828a-...jpg</code>, Figma Playground (Copy) <code>3po5ynomzdPNe2mcO7IKRw</code> node <code>614:260</code>, page &quot;Kizuki | Moodboard&quot;, frame &quot;concept_8.6&quot;). Agent chooses which icon fits each tab. App icon and logos come from the same source.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">57</td>
+<td data-l="Topic">&quot;Get discovered&quot; placement</td>
+<td data-l="Decision">Agent places it where it fits best for UX (not necessarily Profile &gt; Edit); document the reasoning.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">58</td>
+<td data-l="Topic">Landing page</td>
+<td data-l="Decision">Scrollytelling, minimal text, smooth animations; keep the FAQs and the waitlist CTA. Use characters and backgrounds from Illustrations (Copy) <code>dPirB4bC1bB7KcxaacOVHG</code> and the website designs (&quot;Final version&quot; <code>8:2214</code>; App (Copy) page &quot;Tablet and Iphone website&quot; <code>8:690</code>). Any animation tech.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">59</td>
+<td data-l="Topic">Website repo</td>
+<td data-l="Decision">New repo <code>kizuki_web</code> at <code>/Users/edisonabdiel/Projects/kizuki_web</code> (local first; GitHub remote created only with user OK).</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">60</td>
+<td data-l="Topic">Waitlist storage</td>
+<td data-l="Decision">Production Supabase <code>enosggckdxjiaqtxalhg</code>, one isolated <code>waitlist</code> table, insert-only RLS. First deliberate production write; apply the migration only after showing it to the user.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">61</td>
+<td data-l="Topic">Website hosting</td>
+<td data-l="Decision">Vercel.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">62</td>
+<td data-l="Topic">Remove from Crew cooldown</td>
+<td data-l="Decision">30 days before the removed person can send a new request; old chat stays readable.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">63</td>
+<td data-l="Topic">Search video length</td>
+<td data-l="Decision">Max 15 s, 720p, 15 MB.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">64</td>
+<td data-l="Topic">Search video playback</td>
+<td data-l="Decision">Autoplay muted in the grid; tap for sound.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">65</td>
+<td data-l="Topic">Website domain / repo</td>
+<td data-l="Decision"><a href="https://kizuki.club">https://kizuki.club</a>; GitHub <code>edi-kizuki/kizuki_web</code> (public).</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">66</td>
+<td data-l="Topic">Unavailable accounts label</td>
+<td data-l="Decision">Suspended, deleting and deleted accounts all show as &quot;Deleted user&quot;.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">67</td>
+<td data-l="Topic">Reporter hide</td>
+<td data-l="Decision">Permanent in v0; no &quot;Show again&quot;.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">68</td>
+<td data-l="Topic">Hidden profile, existing chats</td>
+<td data-l="Decision">Name stub only (no bio/city) for people already chatting; history stays. Overrides the VF05 default exception E1 if it exposed the full row — implement as a stub projection, not full-row RLS access.</td>
+<td data-l="Status"><span class="badge s-decided">decided</span></td>
+<td data-l="Needs me now?">No</td>
+<td data-l="Note"></td>
+</tr>
+<tr class="">
+<td data-l="#">69</td>
+<td data-l="Topic">Reported pending request</td>
+<td data-l="Decision">Left as is (sender sees no change), hidden for the reporter.</td>
 <td data-l="Status"><span class="badge s-decided">decided</span></td>
 <td data-l="Needs me now?">No</td>
 <td data-l="Note"></td>

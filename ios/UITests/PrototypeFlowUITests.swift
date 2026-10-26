@@ -15,6 +15,23 @@ final class PrototypeFlowUITests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label ==[c] %@", label)).firstMatch
     }
 
+    @MainActor func testDebugDefaultAndTabBarAccessibilityScreenshots() {
+        let app = launch(["-screen", "home"]) // No -fixtures: Debug still defaults to fixtures.
+        XCTAssertTrue(app.staticTexts["Recommended projects"].waitForExistence(timeout: 8))
+        for label in ["Home", "Search", "Suki", "My Projects", "Profile"] {
+            let tab = app.tabBars.buttons[label]
+            XCTAssertTrue(tab.exists, "VoiceOver label: \(label)")
+            XCTAssertEqual(tab.label, label)
+            tab.tap()
+            XCTAssertTrue(tab.isSelected)
+            XCTAssertEqual(app.tabBars.buttons.matching(NSPredicate(format: "isSelected == true")).count, 1)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "B01-tab-\(label)-iOS-\(ProcessInfo.processInfo.operatingSystemVersionString)"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+    }
+
     @MainActor func testEntryOnboardingAndEveryTab() {
         let app = launch()
         let apple = button(app, "Sign in with Apple")

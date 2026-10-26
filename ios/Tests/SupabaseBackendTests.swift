@@ -100,12 +100,12 @@ struct SupabaseBackendTests {
     private let id = UUID(uuidString: "00000000-0000-0000-0000-000000000042")!
     private let key = "sb_publishable_local_test_only"
 
-    private func backend(_ harness: Harness, withSession: Bool = true, expired: Bool = false, storage: MemoryAuthStorage = MemoryAuthStorage()) throws -> SupabaseBackend {
+    private func backend(_ harness: Harness, withSession: Bool = true, expired: Bool = false, storage: MemoryAuthStorage = MemoryAuthStorage(), restoreTimeout: Duration = .seconds(10)) throws -> SupabaseBackend {
         let config = try AppConfiguration(environment: .local, url: "http://127.0.0.1:54321", publishableKey: key)
         if withSession {
             // Synthetic credentials, valid only inside this intercepted test transport.
             let user = User(id: id, appMetadata: [:], userMetadata: [:], aud: "authenticated",
-                            createdAt: Date(), updatedAt: Date())
+                            createdAt: Date(), emailConfirmedAt: Date(), updatedAt: Date())
             let session = Session(accessToken: "test-access-token", tokenType: "bearer", expiresIn: 3600,
                                   expiresAt: Date().timeIntervalSince1970 + (expired ? -3600 : 3600),
                                   refreshToken: "test-refresh-token", user: user)
@@ -117,7 +117,7 @@ struct SupabaseBackendTests {
         let transport = URLSessionConfiguration.ephemeral
         transport.protocolClasses = [BackendURLProtocol.self]
         transport.httpAdditionalHeaders = [Routes.header: harness.routeID]
-        return harness.track(SupabaseBackend(configuration: config, storage: storage, session: URLSession(configuration: transport)))
+        return harness.track(SupabaseBackend(configuration: config, storage: storage, session: URLSession(configuration: transport), restoreTimeout: restoreTimeout))
     }
 
     @Test func ownProfileUsesSDKAuthProjectionAndIdentityFilter() async throws {
@@ -126,6 +126,8 @@ struct SupabaseBackendTests {
         let service = try backend(harness)
         let profile = try await service.ownProfile(for: id)
         #expect(profile?.displayHandle == "Creator")
+        #expect(profile?.eligibleAt == nil)
+        #expect(profile?.onboardingCompletedAt == nil)
         let request = try #require(harness.route.captured().last { $0.url?.path == "/rest/v1/profiles" })
         #expect(request.httpMethod == "GET")
         #expect(request.value(forHTTPHeaderField: "apikey") == key)
@@ -202,10 +204,85 @@ struct SupabaseBackendTests {
         #expect(try storage.retrieve(key: config.sessionStorageKey) == nil)
     }
 
+    @Test func replayCommittedContracts() async throws {
+        let directory = try #require(Bundle(for: ContractBundleMarker.self).resourceURL).appendingPathComponent("Contracts")
+        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        for file in files {
+            let recording = try JSONDecoder().decode(RepositoryContract.self, from: Data(contentsOf: file))
+            try await replay(recording)
+        }
+        // B01 permits an empty set. Directory absence is a failure, never a silently skipped replay.
+    }
+
+    @Test func replayHarnessExercisesSuccessAndFailure() async throws {
+        let body = "[{\"id\":\"\(id)\",\"handle\":\"creator\"}]"
+        let success = RepositoryContract(version: 1, operation: "profile.own", userID: id,
+            request: .init(method: "GET", path: "/rest/v1/profiles", query: ["id": "eq.\(id)", "limit": "1",
+                "select": "id,handle,display_handle,avatar_path"]),
+            response: .init(status: 200, body: body),
+            expected: .init(profile: Profile(id: id, handle: "creator"), fails: false))
+        try await replay(success)
+        let failure = RepositoryContract(version: 1, operation: success.operation, userID: id, request: success.request,
+            response: .init(status: 403, body: "{\"code\":\"42501\",\"message\":\"permission denied\"}"),
+            expected: .init(profile: nil, fails: true))
+        try await replay(failure)
+    }
+
+    private func replay(_ recording: RepositoryContract) async throws {
+        #expect(recording.version == 1)
+        guard recording.version == 1, recording.operation == "profile.own", recording.userID == id else {
+            Issue.record("Unsupported repository contract version, operation or test identity")
+            return
+        }
+        let harness = Harness(); defer { harness.stop() }
+        harness.route.configure(body: recording.response.body, code: recording.response.status)
+        let service = try backend(harness)
+        if recording.expected.fails {
+            await #expect(throws: (any Error).self) { try await service.ownProfile(for: recording.userID) }
+        } else {
+            #expect(try await service.ownProfile(for: recording.userID) == recording.expected.profile)
+        }
+        let request = try #require(harness.route.captured().last { $0.url?.path == "/rest/v1/profiles" })
+        #expect(request.httpMethod == recording.request.method)
+        #expect(request.url?.path == recording.request.path)
+        let items = URLComponents(url: try #require(request.url), resolvingAgainstBaseURL: false)?.queryItems ?? []
+        #expect(Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") }) == recording.request.query)
+    }
+
+    @Test func offlineExpiredRestoreHasBoundedUnavailableFallback() async throws {
+        let harness = Harness(); defer { harness.stop() }
+        harness.route.configure(body: "{}", offline: true)
+        let service = try backend(harness, expired: true, restoreTimeout: .milliseconds(50))
+        let start = ContinuousClock.now
+        let seen = await collect(await service.events(), limit: 1)
+        #expect(seen == [.unavailable])
+        #expect(ContinuousClock.now - start >= .milliseconds(40))
+    }
+
+    @Test func actualRecoveryOTPEmitsSignedInOnly() async throws {
+        let harness = Harness(); defer { harness.stop() }
+        let user = User(id: id, appMetadata: [:], userMetadata: [:], aud: "authenticated",
+                        createdAt: Date(), emailConfirmedAt: Date(), updatedAt: Date())
+        let session = Session(accessToken: "recovery-test-token", tokenType: "bearer", expiresIn: 3600,
+                              expiresAt: Date().timeIntervalSince1970 + 3600,
+                              refreshToken: "recovery-refresh-token", user: user)
+        let body = try AuthClient.Configuration.jsonEncoder.encode(session)
+        harness.route.configure(body: String(decoding: body, as: UTF8.self))
+        let service = try backend(harness, withSession: false)
+        let stream = await service.events()
+        let collection = Task { await collect(stream, until: { if case .signedIn = $0 { true } else { false } }) }
+        try await service.verifyPasswordRecoveryCode(email: "recovery@example.test", code: "123456")
+        let seen = await collection.value
+        #expect(seen.contains(.signedIn(userID: id)))
+        #expect(!seen.contains(.passwordRecovery(userID: id)))
+        #expect(harness.route.captured().contains { $0.url?.path == "/auth/v1/verify" && $0.httpMethod == "POST" })
+    }
+
     @Test func expiredSessionRefreshesThroughSDK() async throws {
         let harness = Harness(); defer { harness.stop() }
         let user = User(id: id, appMetadata: [:], userMetadata: [:], aud: "authenticated",
-                        createdAt: Date(), updatedAt: Date())
+                        createdAt: Date(), emailConfirmedAt: Date(), updatedAt: Date())
         let refreshed = Session(accessToken: "refreshed-test-token", tokenType: "bearer", expiresIn: 3600,
                                 expiresAt: Date().timeIntervalSince1970 + 3600,
                                 refreshToken: "rotated-test-refresh-token", user: user)
@@ -214,7 +291,7 @@ struct SupabaseBackendTests {
         let service = try backend(harness, expired: true)
         // Bounded wait: the refreshed session must arrive within the deadline or the test fails.
         let seen = await collect(await service.events(), limit: 3, until: { [expected = id] in $0 == .signedIn(userID: expected) })
-        #expect(seen.contains(.signedIn(userID: id)))
+        #expect(seen == [.signedIn(userID: id)]) // No expired-session unavailable flash.
         let refreshes = harness.route.captured().filter { $0.url?.path == "/auth/v1/token" }
         #expect(!refreshes.isEmpty)
     }

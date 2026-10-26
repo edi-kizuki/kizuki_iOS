@@ -11,6 +11,8 @@ def validate(values):
     expected = {"Staging": "staging", "Release": "production"}.get(values.get("CONFIGURATION"))
     if expected is None or environment != expected:
         raise ValueError("Build configuration and backend environment do not match.")
+    if environment == "production":
+        raise ValueError("Production configuration is disabled in v0.")
     url = urlsplit(values.get("SUPABASE_URL", ""))
     host = url.hostname or ""
     production = "enosggckdxjiaqtxalhg.supabase.co"

@@ -27,6 +27,12 @@ v2.1 §4.3–4.7.
 - Get discovered card on own Profile; chooser keeps two options.
 - Replace traced tab icons with designer vector originals when exported; screenshots on iOS 26 and iOS 17.
 
+## B01 review R-06 transfer (2026-10-26)
+
+- Owns the deferred iOS 17 half of [[012-b01-live-composition-seam]] tab regression criterion. `xcrun simctl list runtimes` lists only iOS 26.0 (26.0.1, 23A8464). About 7 GB is free. The user explicitly prohibited downloading a runtime and directed this transfer.
+- Exit test: on an installed iOS 17 simulator, run `PrototypeFlowUITests.testDebugDefaultAndTabBarAccessibilityScreenshots`; retain all five selected/unselected tab screenshots and verify VoiceOver labels, selection, contrast and clipping.
+- Keep the iOS 26 evidence in B01. This transfer does not claim iOS 17 compatibility was verified.
+
 ## Risk class
 
 3+ files (UI).

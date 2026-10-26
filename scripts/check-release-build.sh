@@ -9,12 +9,27 @@ case "$config" in
   Release) scheme=Kizuki-Production; environment=production; host=enosggckdxjiaqtxalhg.supabase.co ;;
   *) echo "Unknown configuration: $config" >&2; exit 2 ;;
 esac
+# Production is deliberately unbuildable in v0. Verify the real Xcode prebuild barrier.
 ./scripts/generate-project.sh
-derived=".build/ReleaseCheck-$config"
+derived=".build/ReleaseDerivedData"
+mkdir -p .build
+log=".build/release-check-$config.log"
+set +e
 xcodebuild -project ios/Kizuki.xcodeproj -scheme "$scheme" -configuration "$config" \
   -destination 'generic/platform=iOS Simulator' -derivedDataPath "$derived" \
   -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO \
   KIZUKI_ENVIRONMENT="$environment" SUPABASE_URL="https://$host" \
-  SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_compile_only build
+  SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_compile_only build >"$log" 2>&1
+status=$?
+set -e
+if [[ "$config" == Release ]]; then
+  if [[ "$status" != 0 ]] && /usr/bin/grep -Fq 'error: Production configuration is disabled in v0.' "$log"; then
+    echo 'ok: Release build refused production in the configuration validator'
+    exit 0
+  fi
+  echo 'error: Release did not fail at the production barrier; see build log' >&2
+  exit 1
+fi
+if [[ "$status" != 0 ]]; then tail -n 60 "$log"; exit "$status"; fi
 app="$derived/Build/Products/$config-iphonesimulator/Kizuki.app"
 python3 scripts/check-release-artifact.py "$app" "$environment"
