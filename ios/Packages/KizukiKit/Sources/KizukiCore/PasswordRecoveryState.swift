@@ -1,4 +1,3 @@
-// Related: [[012-b01-live-composition-seam]], [[015-b04-email-auth-eligibility]].
 import Foundation
 
 /// Only a flow marker and user ID are persisted. Live callers supply an environment-specific namespace.
