@@ -79,7 +79,7 @@ public struct KizukiIconButton: View {
                 if let icon { icon.image.resizable().scaledToFit().frame(width: 24, height: 24) }
                 else if let symbol { Image(systemName: symbol).font(.system(size: 22)) }
             }
-            .frame(width: 44, height: 44).foregroundStyle(KizukiTheme.babyBlueIcons)
+            .frame(width: 44, height: 44).contentShape(Rectangle()).foregroundStyle(KizukiTheme.babyBlueIcons)
         }.accessibilityLabel(label)
     }
 }
