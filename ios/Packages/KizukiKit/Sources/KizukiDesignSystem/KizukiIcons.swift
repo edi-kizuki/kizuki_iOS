@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// Kizuki's own vector icons and logos (template-rendering assets in `KizukiIcons.xcassets`, "Preserves Vector Data").
-/// Sources and node ids: `docs/design/icons/README.md`.
+/// Traced from the Kizuki icon sheet in Figma.
 public enum KizukiIcon: String, CaseIterable, Sendable {
-    // Tab bar. One icon per tab; alternates live in docs/design/icons/sheet-traced.
+    // Tab bar. One icon per tab.
     case tabHome = "TabHome", tabSearch = "TabSearch", tabSuki = "TabSuki", tabMyProjects = "TabMyProjects", tabProfile = "TabProfile"
     // Brand, from Figma "Playground (Copy)" concept_8.6.
     case wordmark = "KizukiWordmark", kMark = "KizukiKMark"

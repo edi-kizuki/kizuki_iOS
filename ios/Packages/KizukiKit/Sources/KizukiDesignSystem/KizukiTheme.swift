@@ -1,7 +1,7 @@
 import CoreText
 import SwiftUI
 
-/// Dark-only palette and type from `docs/design/2026-10-25-design-tokens.md` (Figma-returned values).
+/// Dark-only palette and type, taken from the Kizuki App Figma file.
 public enum KizukiTheme {
     public static let charcoal = Color(hex: 0x1A1A1A)
     public static let cream = Color(hex: 0xF2EEE7)
