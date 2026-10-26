@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Related: [[012-b01-live-composition-seam]], [[2026-10-25-pr2-b01-review-claude]].
 """Reject a real Debug fixture binary with only system tools on PATH. No rg/nm dependency."""
 import os
 import plistlib
