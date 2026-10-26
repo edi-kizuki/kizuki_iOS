@@ -148,6 +148,33 @@ final class PrototypeFlowUITests: XCTestCase {
         waitForExpectations(timeout: 5)
     }
 
+    @MainActor func testCrewActionsAlignAndOpenChatAtDefaultAndAccessibilityXL() {
+        for size in ["UICTContentSizeCategoryL", "UICTContentSizeCategoryAccessibilityXL"] {
+            let app = launch(["-fixtures", "-screen", "suki-crew", "-UIPreferredContentSizeCategoryName", size])
+            let message = button(app, "Message Aya Morita")
+            let more = button(app, "More options for Aya Morita")
+            let profile = button(app, "View profile for Aya Morita")
+            XCTAssertTrue(message.waitForExistence(timeout: 8))
+            XCTAssertTrue(more.isHittable)
+            XCTAssertTrue(profile.isHittable)
+            for action in [message, more] {
+                XCTAssertEqual(action.frame.width, 44, accuracy: 1, action.label)
+                XCTAssertEqual(action.frame.height, 44, accuracy: 1, action.label)
+            }
+            XCTAssertLessThanOrEqual(profile.frame.maxX, message.frame.minX)
+            XCTAssertEqual(message.frame.midY, more.frame.midY, accuracy: 1)
+            XCTAssertEqual(profile.frame.midY, more.frame.midY, accuracy: 1)
+            XCTAssertEqual(more.frame.minX - message.frame.maxX, 8, accuracy: 1)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Crew-actions-\(size)"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            message.tap()
+            XCTAssertTrue(app.textFields["Message Aya"].waitForExistence(timeout: 5))
+            app.terminate()
+        }
+    }
+
     @MainActor func testSearchShowsPhotosAndShortVideosOnly() {
         let app = launch(["-fixtures", "-screen", "search"])
         XCTAssertTrue(app.textFields["Search photos & videos"].waitForExistence(timeout: 8))

@@ -52,21 +52,10 @@ public struct SukiView: View {
             SukiEmptyState(title: "Your Crew starts with a yes", message: "Accepted requests land here, with a chat.")
         }
         ForEach(store.crew) { person in
-            VStack(spacing: 8) {
-                Button { router.push(.conversation(person.id)) } label: {
-                    PersonRow(id: person.id, name: person.name, subtitle: "\(person.primaryRole) · Say hello", trailing: "bubble.left")
-                }.buttonStyle(.plain)
-                HStack {
-                    Button("View profile") { router.push(.profile(person.id)) }
-                        .font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons).frame(minHeight: 44)
-                    Spacer()
-                    Menu {
-                        Button("Remove from Crew", systemImage: "person.badge.minus", role: .destructive) { removing = person }
-                    } label: { Image(systemName: "ellipsis.circle").font(.system(size: 20)).frame(width: 44, height: 44) }
-                        .foregroundStyle(KizukiTheme.babyBlueIcons).accessibilityLabel("More options for \(person.name)")
-                }
-            }
-            .padding(16).background(KizukiTheme.grey.opacity(0.5), in: RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
+            CrewCard(person: person,
+                     onMessage: { router.push(.conversation(person.id)) },
+                     onProfile: { router.push(.profile(person.id)) },
+                     onRemove: { removing = person })
         }
     }
 
@@ -155,6 +144,61 @@ public struct SukiView: View {
             .overlay(RoughShape().stroke(KizukiTheme.babyBlueIcons.opacity(0.5), lineWidth: 1))
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Identity has the full card width; actions share one centered trailing row.
+struct CrewCard: View {
+    let person: Person
+    let onMessage: () -> Void
+    let onProfile: () -> Void
+    let onRemove: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button(action: onMessage) {
+                // Unlike PersonRow, Crew identity has no trailing glyph or subtitle line limit.
+                HStack(spacing: 14) {
+                    PersonAvatar(person.id, size: 48)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(person.name).font(KizukiTheme.bodyMedium(17))
+                        Text("\(person.primaryRole) · Say hello")
+                            .font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens chat")
+            HStack(alignment: .center, spacing: 8) {
+                Button("View profile", action: onProfile)
+                    .font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
+                    .fixedSize(horizontal: false, vertical: true).frame(minHeight: 44)
+                    .accessibilityLabel("View profile for \(person.name)")
+                Spacer(minLength: 0)
+                HStack(alignment: .center, spacing: 8) {
+                    KizukiIconButton(icon: .messages, label: "Message \(person.name)", action: onMessage)
+                        .accessibilityShowsLargeContentViewer()
+                    Menu {
+                        Button("Remove from Crew", systemImage: "person.badge.minus", role: .destructive, action: onRemove)
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 24))
+                            .frame(width: 44, height: 44).contentShape(Rectangle())
+                    }
+                    .foregroundStyle(KizukiTheme.babyBlueIcons)
+                    .accessibilityLabel("More options for \(person.name)")
+                    .accessibilityShowsLargeContentViewer()
+                }
+                .fixedSize()
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .background(KizukiTheme.grey.opacity(0.5), in: RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
     }
 }
 
