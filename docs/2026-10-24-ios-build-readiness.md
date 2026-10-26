@@ -7,7 +7,7 @@ Related: [[playbook]], [[00-what-exists]], [[AGENTS]], [[CLAUDE]], [[README]].
 - Work only in `/Users/edisonabdiel/Projects/kizuki_iOS`; set command working directories explicitly when the T3 thread is bound to scratch.
 - Git origin: `https://github.com/edi-kizuki/kizuki_iOS.git`. Repository has no initial commit yet.
 - Current Notion requirements specify iPhone, iOS 17+, Swift/SwiftUI, and Supabase. Older React Native material is superseded by the user's native iOS direction.
-- Supabase project: `enosggckdxjiaqtxalhg`. Read access verified; public table list empty. Development/staging/production role remains unconfirmed.
+- Supabase project: `enosggckdxjiaqtxalhg`. Read access verified; public table list empty. Confirmed production project. Develop and test locally.
 
 ## Tooling verified this round
 
@@ -33,12 +33,12 @@ Related: [[playbook]], [[00-what-exists]], [[AGENTS]], [[CLAUDE]], [[README]].
 2. Reconcile current Notion navigation/onboarding with older Figma variants. Resolve Start destination and compensation-rule contradictions. Record decisions and a glossary.
 3. Agree first milestone and acceptance scope. No delivery date is approved.
 4. Freeze the selected screen structure and design tokens: colors, fonts and their licenses, spacing, component states, light/dark behavior, accessibility, and illustration placement. Reuse approved Figma direction; do not assume the playbook's Purse styling.
-5. Choose bundle identifier and app display name. Generate `project.yml`, SwiftUI app entry point, fixtures, launch-argument screen router, and a repeatable screenshot workflow.
+5. Use confirmed bundle identifier `club.kizuki.ios`; confirm app display name. Generate `project.yml`, SwiftUI app entry point, fixtures, launch-argument screen router, and a repeatable screenshot workflow.
 6. Build and run the fixture prototype on the simulator. Review actual rendered screens, including Dynamic Type, VoiceOver, error/empty/loading states, and relevant device sizes.
 
 ## Required work before a live backend
 
-- Confirm the Supabase environment role and separation of development and production.
+- Use `enosggckdxjiaqtxalhg` for production and a local Supabase stack for development/tests. Keep configuration and credentials separate.
 - Define reviewed data models, API contracts, fixture/live implementations, migrations, authorization and RLS, storage access, and deletion/retention behavior.
 - Configure Apple/Google/email authentication and redirect/deep-link behavior to match approved specs. Keep server credentials off-device and out of git.
 - Implement the approved recommendation algorithm after its detailed spec is read; no external model is implied.

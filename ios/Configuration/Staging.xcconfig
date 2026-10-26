@@ -1,0 +1,5 @@
+#include "Base.xcconfig"
+KIZUKI_ENVIRONMENT = staging
+SUPABASE_URL = https:/$()/ankgfqkgflcalmlreetu.supabase.co
+SUPABASE_PUBLISHABLE_KEY =
+#include? "Staging.private.xcconfig"

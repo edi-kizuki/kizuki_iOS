@@ -1,0 +1,243 @@
+{
+  "updated": "2026-10-25",
+  "_help": "Single source of card data. Add a card per artifact. status: needs-you | to-read | decided. type: research | concept | review | diagram | prototype | decision | brief. round: id from rounds (omit for standing-only cards). section: design | prototypes | diagrams | research | map (standing sections). href: /docs/... serves repo docs read-only; other paths are hub files. needs-you cards show only under 'Needs your answer'. After editing, rebuild the walkthrough: bun hub/build.ts (serve.ts does this on start).",
+  "rounds": [
+    {
+      "id": "architecture-round-1",
+      "title": "Architecture round 1",
+      "date": "2026-10-25",
+      "summary": "Intake, 28 locked interview decisions, full Figma pass. Research, concept and review lanes are next.",
+      "brief": null
+    },
+    {
+      "id": "foundation",
+      "title": "iOS foundation",
+      "date": "2026-10-24",
+      "summary": "Baseline app foundation on feature/ios-foundation, plus its independent acceptance spec.",
+      "brief": null
+    }
+  ],
+  "cards": [
+    {
+      "id": "decide-figma-access",
+      "title": "Figma access: which seat fixes the MCP limit?",
+      "date": "2026-10-25",
+      "type": "decision",
+      "summary": "Connected account has a View seat on the file owner's Professional team, so Figma tool calls hit a quota.",
+      "status": "needs-you",
+      "href": "/decide/figma-access.html",
+      "round": "architecture-round-1"
+    },
+    {
+      "id": "decide-illustration-assets",
+      "title": "Illustration production assets: vectors or rasters?",
+      "date": "2026-10-25",
+      "type": "decision",
+      "summary": "Only full-composition rasters exist in docs/design/illustrations. Separate artwork is needed for the app.",
+      "status": "needs-you",
+      "href": "/decide/illustration-assets.html",
+      "round": "architecture-round-1"
+    },
+    {
+      "id": "decide-hub-deploy",
+      "title": "Deploy the hub to Vercel behind a password: now or later?",
+      "date": "2026-10-25",
+      "type": "decision",
+      "summary": "Hub runs locally. Deploy needs a Vercel project and a SITE_PASSWORD.",
+      "status": "needs-you",
+      "href": "/decide/hub-deploy.html",
+      "round": "architecture-round-1"
+    },
+    {
+      "id": "decide-overnight-block",
+      "title": "Overnight 'don't stop early' block text is missing",
+      "date": "2026-10-25",
+      "type": "decision",
+      "summary": "Playbook add-on item 3 says to paste the block, but the add-on file was never received.",
+      "status": "needs-you",
+      "href": "/decide/overnight-block.html",
+      "round": "architecture-round-1"
+    },
+    {
+      "id": "walkthrough",
+      "title": "Walkthrough",
+      "date": "2026-10-25",
+      "type": "concept",
+      "summary": "The one page that walks the whole concept: chapters, decisions ledger, numbers that matter. Chapters are placeholders until the round lands.",
+      "status": "to-read",
+      "href": "/walkthrough.html",
+      "round": "architecture-round-1"
+    },
+    {
+      "id": "interview-round-1",
+      "title": "Architecture round 1 interview: 28 decisions",
+      "date": "2026-10-24",
+      "type": "decision",
+      "summary": "User decisions from the Phase 1 interview. Override conflicting sources. Full ledger on the walkthrough.",
+      "status": "decided",
+      "href": "/docs/context/2026-10-24-architecture-round-1-interview.md",
+      "round": "architecture-round-1"
+    },
+    {
+      "id": "figma-walkthrough",
+      "title": "Figma full walkthrough",
+      "date": "2026-10-25",
+      "type": "research",
+      "summary": "All six Figma pages mapped from layer data. Visual coverage partial and tokens unextracted because of the seat quota.",
+      "status": "to-read",
+      "href": "/docs/design/2026-10-25-figma-full-walkthrough.md",
+      "round": "architecture-round-1",
+      "section": "design"
+    },
+    {
+      "id": "what-exists",
+      "title": "What exists (intake)",
+      "date": "2026-10-24",
+      "type": "brief",
+      "summary": "Step zero: what the app is, existing screens and flows, decisions that look made, contradictions, open questions.",
+      "status": "to-read",
+      "href": "/docs/context/00-what-exists.md",
+      "round": "architecture-round-1"
+    },
+    {
+      "id": "foundation-acceptance",
+      "title": "Foundation acceptance spec and risk audit",
+      "date": "2026-10-24",
+      "type": "review",
+      "summary": "Acceptance criteria and requirements-risk audit for the iOS foundation. Not a PR approval; no verdict issued.",
+      "status": "to-read",
+      "href": "/docs/reviews/2026-10-24-foundation-acceptance.md",
+      "round": "foundation"
+    },
+    {
+      "id": "foundation-lane",
+      "title": "Foundation coding report",
+      "date": "2026-10-24",
+      "type": "brief",
+      "summary": "Scope, boundaries and source intake for the first client foundation increment. Verification still pending in the doc.",
+      "status": "to-read",
+      "href": "/docs/lanes/2026-10-24-foundation-coding-report.md",
+      "round": "foundation"
+    },
+    {
+      "id": "wayfinder-map",
+      "title": "Kizuki v0 Wayfinder map",
+      "date": "2026-10-25",
+      "type": "concept",
+      "summary": "Map of decision tickets for v0 (tickets in docs/map/tickets). Seeded because the map now exists.",
+      "status": "to-read",
+      "href": "/docs/map/2026-10-25-wayfinder-map.md",
+      "round": "architecture-round-1",
+      "section": "map"
+    },
+    {
+      "id": "research-supabase",
+      "title": "Supabase backend research for v0",
+      "date": "2026-10-25",
+      "type": "research",
+      "summary": "Research lane 001. Marked in-progress in its frontmatter; read as a draft.",
+      "status": "to-read",
+      "href": "/docs/research/2026-10-25-supabase-backend-research.md",
+      "round": "architecture-round-1",
+      "section": "research"
+    },
+    {
+      "id": "diagram-data-model",
+      "title": "Data model (ER diagram)",
+      "date": "2026-10-25",
+      "type": "diagram",
+      "summary": "About 35 v0 tables by domain, key relationships, and owner-only, public, RPC-only and service-role markers. Crew, not Matches.",
+      "status": "to-read",
+      "href": "/diagrams/data-model.html",
+      "round": "architecture-round-1",
+      "section": "diagrams"
+    },
+    {
+      "id": "diagram-system-overview",
+      "title": "System overview diagram",
+      "date": "2026-10-25",
+      "type": "diagram",
+      "summary": "Kizuki v0 system map: iOS app, Supabase staging services, Apple, third parties, remote gateway, and refused production.",
+      "status": "to-read",
+      "href": "/diagrams/system-overview.html",
+      "round": "architecture-round-1",
+      "section": "diagrams"
+    },
+    {
+      "id": "diagram-main-user-flow",
+      "title": "Main user flow (sign in to Crew chat)",
+      "date": "2026-10-25",
+      "type": "diagram",
+      "summary": "Sign in, onboarding, Home, then join request or owner invite, accept-time re-checks, push at each step, Crew, chat, and the decline, withdraw and expire exits.",
+      "status": "to-read",
+      "href": "/diagrams/main-user-flow.html",
+      "round": "architecture-round-1",
+      "section": "diagrams"
+    },
+    {
+      "id": "diagram-request-state-machine",
+      "title": "Request state machine",
+      "date": "2026-10-25",
+      "type": "diagram",
+      "summary": "Pending to Accepted, Declined, Withdrawn or Expired, with actor per transition, accept-time re-checks, the atomic seat claim, what acceptance creates (Crew + fresh chat) and the block effect.",
+      "status": "to-read",
+      "href": "/diagrams/request-state-machine.html",
+      "round": "architecture-round-1",
+      "section": "diagrams"
+    },
+    {
+      "id": "diagram-project-state-machine",
+      "title": "Project status machine",
+      "date": "2026-10-25",
+      "type": "diagram",
+      "summary": "Draft, Published, Closed, Past with closed_reason per exit, the 30-day expiry and renew, the owner and system actor per transition, and the publish guard.",
+      "status": "to-read",
+      "href": "/diagrams/project-state-machine.html",
+      "round": "architecture-round-1",
+      "section": "diagrams"
+    },
+    {
+      "id": "diagram-account-lifecycle",
+      "title": "Account lifecycle and deletion",
+      "date": "2026-10-25",
+      "type": "diagram",
+      "summary": "Active, Deleting with freeze, token revoke, Apple revoke, storage cleanup and auth delete, Suspended, and the 30-day message-text erase that an open report holds.",
+      "status": "to-read",
+      "href": "/diagrams/account-lifecycle.html",
+      "round": "architecture-round-1",
+      "section": "diagrams"
+    },
+    {
+      "id": "prototype-round-1",
+      "title": "Clickable prototype, round 1",
+      "date": "2026-10-25",
+      "type": "prototype",
+      "summary": "Hero screens built as real feature modules in the app, on fixtures only. 39 screens in hub/prototypes, launch-argument router, gallery script, UI-test click-through.",
+      "status": "to-read",
+      "href": "/docs/lanes/2026-10-25-prototype-report.md",
+      "round": "architecture-round-1",
+      "section": "prototypes"
+    },
+    {
+      "id": "diagram-build-roadmap",
+      "title": "Build roadmap (B01–B21, follow-up gates)",
+      "date": "2026-10-25",
+      "type": "diagram",
+      "summary": "Kizuki v0 build order: 21 slices in five phases, follow-up tickets 033–042 as gates, Apple enrolment (006) as the only user task. Crew, not Matches.",
+      "status": "to-read",
+      "href": "/diagrams/build-roadmap.html",
+      "round": "architecture-round-1",
+      "section": "diagrams"
+    },
+    {
+      "id": "b01-live-seam",
+      "title": "B01: Claude round 1 fixes",
+      "date": "2026-10-26",
+      "type": "brief",
+      "summary": "Session/recovery fixes, foundation-only profile reads, enforced artifact checks and live UI coverage. iOS 17 screenshots transferred to VF12; independent round 2 pending.",
+      "status": "to-read",
+      "href": "/docs/lanes/2026-10-25-b01-report.md",
+      "round": "foundation"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+name: Foundation
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.0.1'
+      - run: brew install xcodegen
+      - name: Build and test Local scheme
+        env:
+          KIZUKI_TEST_DESTINATION: platform=iOS Simulator,name=iPhone 17 Pro
+        run: ./scripts/check-ios.sh
+      # Release-type configurations: pinned URLs and a clearly synthetic public key. Compile-only, never launched, no backend contacted.
+      - name: Reject Debug fixture binary with minimal PATH
+        run: python3 scripts/test-release-artifact-negative-control.py .build/DerivedData/Build/Products/Debug-iphonesimulator/Kizuki.app
+      - name: Verify runtime environment guards
+        run: ./scripts/test-release-runtime-guard.sh
+      - name: Build Staging and inspect artifact
+        run: ./scripts/check-release-build.sh Staging
+      - name: Verify Release refuses production
+        run: ./scripts/check-release-build.sh Release
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-test-results
+          path: .build/*.xcresult
+  local-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: python3 scripts/test-local-guard.py
+      - run: python3 scripts/test-release-config.py
+      - run: ./scripts/test-screenshot-gallery-guard.sh
+      - run: ./scripts/supabase-local.sh start
+      - run: ./scripts/supabase-local.sh reset
+      - run: ./scripts/supabase-local.sh test
+      - if: always()
+        run: ./scripts/supabase-local.sh stop

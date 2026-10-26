@@ -170,3 +170,9 @@ All 100 supplied `.min.js.br` attachments contain readable JavaScript bundle cod
 7. Who owns the taste-card rights, facet taxonomy, and tagging process? The iOS build plan still records these as open work.
 8. Which existing design tokens and assets are approved? The inspected screenshots do not establish a frozen design system.
 9. What delivery target and acceptance scope has the user approved? The source build plan sets no dates.
+
+## Confirmed backend and app identity
+
+- Supabase project `enosggckdxjiaqtxalhg` is production. Develop and run backend tests locally.
+- Bundle identifier: `club.kizuki.ios`.
+- These user decisions resolve the earlier environment-role question. Production migrations remain a separate release step.

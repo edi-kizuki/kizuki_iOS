@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "4bb7cdb8-b65e-4e81-bd22-35059e7a2d72",
+  "status": "current",
+  "command": "deliver",
+  "type": "lifecycle",
+  "input": "/Users/edisonabdiel/Projects/kizuki_iOS/.archify/lifecycle-account-lifecycle-20261025-170647/candidate.json",
+  "output": "/Users/edisonabdiel/Projects/kizuki_iOS/hub/diagrams/account-lifecycle.html",
+  "specification": {
+    "sha256": "02a690f3ed9aff19802a718117e92ad11b2b69cadcc4965a5384e14ba5469b94",
+    "bytes": 4501
+  },
+  "artifact": {
+    "sha256": "e0c38d8e77d7c9ff3032397efdc2458ce31b09ae081f47d3e3cbced4130e37af",
+    "bytes": 849398
+  }
+}

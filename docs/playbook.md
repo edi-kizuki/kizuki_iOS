@@ -380,6 +380,19 @@ grilling tickets it parked for you. That's the daily loop.
 **Compound at the end of each session** with `/ce-compound`: lessons go into `docs/solutions/` in the
 repo, and the next session reads them before starting.
 
+### Four more orchestration rules (add-on, 2026-10-25)
+
+1. **Cross-model review for risky changes.** Anything touching auth, money, deleting data, or changing
+   3+ files gets a review from an OpenAI model via Codex before merge. Claude reviewing Claude misses
+   the same things. If Codex isn't available, record in the PR that the cross-model review didn't happen.
+2. **Name the model and effort for every agent you start.** Otherwise it inherits the session model,
+   and a fleet launched from an Opus session all runs on Opus. Alternate providers (Codex, Claude) and
+   models by task complexity, task type and daily/weekly usage; shift load to the other provider near a limit.
+3. **Overnight runs: paste the "don't stop early" block** at the end of the kickoff prompt, in the first
+   message. Without it, Opus writes a nice summary and stops. *(Block text: pending — the add-on file
+   was not received; paste it here.)*
+4. **Max two review rounds per change.** Whatever is left after round two becomes follow-up tickets.
+
 ---
 
 ## 9. Your first sessions

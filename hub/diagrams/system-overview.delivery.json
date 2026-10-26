@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "cf702fb6-519a-4995-a476-797ac123c8de",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/edisonabdiel/Projects/kizuki_iOS/.archify/system-overview-20261025-120000/candidate.json",
+  "output": "/Users/edisonabdiel/Projects/kizuki_iOS/hub/diagrams/system-overview.html",
+  "specification": {
+    "sha256": "042e00a5ed536b4966f409df89592ea3d790a3f37f6212bb8e65278fd7773613",
+    "bytes": 7817
+  },
+  "artifact": {
+    "sha256": "36a8d7a6751b1209655cf1d777033d51be557e62ce4460abc860c71e5f0fd124",
+    "bytes": 874423
+  }
+}

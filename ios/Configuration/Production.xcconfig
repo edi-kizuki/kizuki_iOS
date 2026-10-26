@@ -1,0 +1,5 @@
+#include "Base.xcconfig"
+KIZUKI_ENVIRONMENT = production
+SUPABASE_URL = https:/$()/enosggckdxjiaqtxalhg.supabase.co
+SUPABASE_PUBLISHABLE_KEY =
+#include? "Production.private.xcconfig"

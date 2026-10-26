@@ -1,0 +1,7 @@
+{
+  "name": "kizuki-avatar-generation",
+  "private": true,
+  "type": "module",
+  "scripts": { "generate": "node generate.mjs", "check": "node generate.mjs --check" },
+  "dependencies": { "blobatar": "2.7.0", "sharp": "0.35.5" }
+}

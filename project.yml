@@ -1,0 +1,145 @@
+name: Kizuki
+options:
+  minimumXcodeGenVersion: 2.46.0
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+configs:
+  Debug: debug
+  Staging: release
+  Release: release
+configFiles:
+  Debug: ios/Configuration/Local.xcconfig
+  Staging: ios/Configuration/Staging.xcconfig
+  Release: ios/Configuration/Production.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    TARGETED_DEVICE_FAMILY: "1"
+packages:
+  KizukiKit:
+    path: ios/Packages/KizukiKit
+targets:
+  Kizuki:
+    type: application
+    platform: iOS
+    sources:
+      - path: ios/App
+        excludes: ["*.plist"]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(KIZUKI_BUNDLE_ID)
+        PRODUCT_NAME: Kizuki
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: App/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      configs:
+        Debug:
+          INFOPLIST_FILE: App/Info-Local.plist
+    preBuildScripts:
+      - name: Validate release configuration
+        script: '"${SRCROOT}/../scripts/validate-release-config.sh"'
+        basedOnDependencyAnalysis: false
+    postBuildScripts:
+      - name: Inspect release artifact
+        script: |
+          if [ "${CONFIGURATION}" != Debug ]; then
+            python3 "${SRCROOT}/../scripts/check-release-artifact.py" "${TARGET_BUILD_DIR}/${WRAPPER_NAME}" "${KIZUKI_ENVIRONMENT}"
+          fi
+        basedOnDependencyAnalysis: false
+    dependencies:
+      - package: KizukiKit
+        product: KizukiInfrastructure
+      - package: KizukiKit
+        product: KizukiFoundationFeature
+      - package: KizukiKit
+        product: KizukiCore
+      - package: KizukiKit
+        product: KizukiDesignSystem
+      - package: KizukiKit
+        product: KizukiTestSupport
+      - package: KizukiKit
+        product: KizukiOnboardingFeature
+      - package: KizukiKit
+        product: KizukiHomeFeature
+      - package: KizukiKit
+        product: KizukiSearchFeature
+      - package: KizukiKit
+        product: KizukiSukiFeature
+      - package: KizukiKit
+        product: KizukiMyProjectsFeature
+      - package: KizukiKit
+        product: KizukiProfileFeature
+      - package: KizukiKit
+        product: KizukiChatFeature
+      - package: KizukiKit
+        product: KizukiSettingsFeature
+  KizukiTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: ios/Tests
+        excludes: [Contracts]
+    preBuildScripts:
+      - name: Copy repository contracts
+        script: |
+          mkdir -p "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Contracts"
+          rsync -a --delete "${SRCROOT}/Tests/Contracts/" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Contracts/"
+        basedOnDependencyAnalysis: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: club.kizuki.ios.tests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - package: KizukiKit
+        product: KizukiCore
+      - package: KizukiKit
+        product: KizukiInfrastructure
+      - package: KizukiKit
+        product: KizukiDesignSystem
+      - package: KizukiKit
+        product: KizukiTestSupport
+      - package: KizukiKit
+        product: KizukiOnboardingFeature
+  KizukiUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [ios/UITests]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: club.kizuki.ios.uitests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Kizuki
+schemes:
+  Kizuki-Local:
+    build:
+      targets:
+        Kizuki: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets: [KizukiTests, KizukiUITests]
+  Kizuki-Staging:
+    build:
+      targets:
+        Kizuki: all
+    run:
+      config: Staging
+    archive:
+      config: Staging
+  Kizuki-Production:
+    build:
+      targets:
+        Kizuki: all
+    run:
+      config: Release
+    archive:
+      config: Release

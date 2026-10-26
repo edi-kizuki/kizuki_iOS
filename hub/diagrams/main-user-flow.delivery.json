@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "6a2b6b00-c868-4dba-b150-811be2c07927",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "/Users/edisonabdiel/Projects/kizuki_iOS/.archify/sequence-main-user-flow-20261025-150000/candidate.json",
+  "output": "/Users/edisonabdiel/Projects/kizuki_iOS/hub/diagrams/main-user-flow.html",
+  "specification": {
+    "sha256": "81825e2b976f0a684ddfee7f143cf4d5eece28cacb3e2b31dca03d0f84a2af79",
+    "bytes": 6419
+  },
+  "artifact": {
+    "sha256": "1251733a1211626e9cd23f5e5dd8bd84b20e43733212c22c1504e9b89485b56b",
+    "bytes": 851444
+  }
+}
