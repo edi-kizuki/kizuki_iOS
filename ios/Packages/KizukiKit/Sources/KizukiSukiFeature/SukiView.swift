@@ -148,7 +148,6 @@ public struct SukiView: View {
 }
 
 /// Identity has the full card width; actions share one centered trailing row.
-/// Related: [[2026-10-25-design-tokens]], [[AGENTS]].
 struct CrewCard: View {
     let person: Person
     let onMessage: () -> Void

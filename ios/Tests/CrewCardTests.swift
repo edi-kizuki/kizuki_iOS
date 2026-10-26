@@ -1,4 +1,3 @@
-// Related: [[2026-10-25-design-tokens]], [[AGENTS]].
 import KizukiCore
 import KizukiTestSupport
 import SwiftUI
