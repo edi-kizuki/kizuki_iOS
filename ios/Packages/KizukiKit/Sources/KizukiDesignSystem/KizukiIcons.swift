@@ -1,5 +1,20 @@
 import SwiftUI
 
+public struct ProviderIcon: View {
+    let assetName: String
+    let size: CGFloat
+    public init(_ assetName: String, size: CGFloat = 24) {
+        self.assetName = assetName
+        self.size = size
+    }
+    public var body: some View {
+        Image(assetName, bundle: .module).renderingMode(.template)
+            .resizable().scaledToFit().frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+    public static func hasAsset(_ name: String) -> Bool { UIImage(named: name, in: .module, with: nil) != nil }
+}
+
 /// Kizuki's own vector icons and logos (template-rendering assets in `KizukiIcons.xcassets`, "Preserves Vector Data").
 /// Traced from the Kizuki icon sheet in Figma.
 public enum KizukiIcon: String, CaseIterable, Sendable {

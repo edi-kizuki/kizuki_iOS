@@ -175,11 +175,11 @@ struct EmbedCard: View {
             ZStack {
                 LinearGradient(colors: link.kind == .youtube ? [KizukiTheme.ink, KizukiTheme.orange] : link.kind == .soundcloud ? [KizukiTheme.charcoal, KizukiTheme.blue] : [KizukiTheme.grey, KizukiTheme.yellow],
                                startPoint: .topLeading, endPoint: .bottomTrailing)
-                Image(systemName: link.kind.symbol).font(.system(size: 40)).foregroundStyle(KizukiTheme.cream)
+                ProviderIcon(link.kind.iconAsset, size: 48).foregroundStyle(KizukiTheme.cream)
             }
             .frame(height: 130)
             HStack {
-                Image(systemName: link.kind.symbol)
+                ProviderIcon(link.kind.iconAsset)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(link.title).font(KizukiTheme.bodyMedium(14)).lineLimit(1)
                     Text(descriptor.state == .invalid ? "Demo link · not connected" : "\(link.kind.rawValue) · opens externally").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons)
@@ -210,6 +210,8 @@ public struct EditProfileView: View {
     @State private var goal: Goal = .collaborate
     @State private var linkURLs: [LinkKind: String] = [:]
     @State private var enabledWidgets: Set<LinkKind> = []
+    @State private var editingWidget: LinkKind?
+    @State private var loadedDraft = false
     @State private var saving = false
     @State private var saveFailed = false
     public init() {}
@@ -254,18 +256,30 @@ public struct EditProfileView: View {
             Text("Compensation preference").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ForEach(Compensation.allCases, id: \.self) { c in ChoiceRow(c.rawValue, selected: compensation == c) { compensation = c } }
             }
-            Text("Portfolio widgets").font(KizukiTheme.title(22))
-            Text("All widgets are optional. Turn one off to hide it without deleting its link. Links open externally for now and are not used for matching.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            Text("Your links").font(KizukiTheme.title(22))
+            Text("Your work, in one place. Add a link, then choose what appears on your profile. Nothing here is used for matching.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ForEach(LinkKind.allCases, id: \.self) { kind in
-                Toggle("Show \(kind.rawValue) widget", isOn: Binding(get: { enabledWidgets.contains(kind) }, set: { enabled in
-                    if enabled { enabledWidgets.insert(kind) } else { enabledWidgets.remove(kind) }
-                })).tint(KizukiTheme.orange)
-                if enabledWidgets.contains(kind) || !(linkURLs[kind] ?? "").isEmpty {
-                    KizukiField(kind.rawValue, text: Binding(get: { linkURLs[kind] ?? "" }, set: { linkURLs[kind] = $0 }), prompt: "https://…")
-                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        ProviderIcon(kind.iconAsset, size: 28)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(kind.rawValue).font(KizukiTheme.bodyMedium(16))
+                            Text(widgetStatus(kind)).font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons)
+                        }
+                        Spacer(minLength: 8)
+                        Button((linkURLs[kind] ?? "").isEmpty ? "Connect" : "Edit") { editingWidget = kind }
+                            .font(KizukiTheme.bodyMedium(14)).frame(minHeight: 44)
+                            .accessibilityLabel("\((linkURLs[kind] ?? "").isEmpty ? "Connect" : "Edit") \(kind.rawValue)")
+                    }
+                    if !(linkURLs[kind] ?? "").isEmpty {
+                        Toggle("Show on profile", isOn: Binding(get: { enabledWidgets.contains(kind) }, set: { enabled in
+                            if enabled { enabledWidgets.insert(kind) } else { enabledWidgets.remove(kind) }
+                        })).tint(KizukiTheme.orange).font(KizukiTheme.body(14))
+                            .accessibilityLabel("Show \(kind.rawValue) on profile")
+                    }
                 }
+                .padding(16).background(KizukiTheme.grey, in: RoundedRectangle(cornerRadius: 12))
             }
-            if !validLinks { Text("Add an HTTPS link from the named platform, or turn off empty widgets. To remove a saved link, turn its widget off and clear the field.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.salmon) }
         }
         .disabled(saving)
         .safeAreaInset(edge: .bottom) {
@@ -281,14 +295,27 @@ public struct EditProfileView: View {
                         if saved { router.sheet = nil } else { saveFailed = true }
                     }
                 }
-                .disabled(saving || !validLinks)
+                .disabled(saving)
             }
             .padding(KizukiTheme.pageInset).background(KizukiTheme.charcoal)
         }
         .interactiveDismissDisabled(saving)
         .navigationTitle("Edit profile").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { router.sheet = nil }.disabled(saving) } }
+        .sheet(isPresented: Binding(get: { editingWidget != nil }, set: { if !$0 { editingWidget = nil } })) {
+            if let kind = editingWidget {
+                PortfolioConnectionSheet(kind: kind, savedURL: linkURLs[kind] ?? "") { url in
+                    let isNew = (linkURLs[kind] ?? "").isEmpty
+                    linkURLs[kind] = url
+                    if url.isEmpty { enabledWidgets.remove(kind) }
+                    else if isNew { enabledWidgets.insert(kind) }
+                    editingWidget = nil
+                }
+            }
+        }
         .onAppear {
+            guard !loadedDraft else { return }
+            loadedDraft = true
             name = store.me.name; bio = store.me.bio; city = store.me.city; roles = store.me.roles
             availability = store.own.availability; compensation = store.own.compensation
             goal = store.own.goal
@@ -305,11 +332,58 @@ public struct EditProfileView: View {
             return ProfileLink(kind: kind, title: title, url: url, isEnabled: enabledWidgets.contains(kind))
         }
     }
-    private var validLinks: Bool {
-        enabledWidgets.allSatisfy { !(linkURLs[$0] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            && editedLinks.allSatisfy { link in
-                store.me.links.contains { $0.kind == link.kind && $0.url == link.url } || PortfolioWidgetDescriptor(link: link).state != .invalid
+    private func widgetStatus(_ kind: LinkKind) -> String {
+        guard let url = linkURLs[kind], !url.isEmpty else { return "Optional · no link added" }
+        guard PortfolioWidgetDescriptor(link: ProfileLink(kind: kind, title: kind.rawValue, url: url)).state != .invalid else { return "Demo link · replace with your work" }
+        return enabledWidgets.contains(kind) ? "Link added · shown on profile" : "Link added · hidden from profile"
+    }
+}
+
+private struct PortfolioConnectionSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let kind: LinkKind
+    let savedURL: String
+    let apply: (String) -> Void
+    @State private var url: String
+    @State private var attemptedSave = false
+
+    init(kind: LinkKind, savedURL: String, apply: @escaping (String) -> Void) {
+        self.kind = kind
+        self.savedURL = savedURL
+        self.apply = apply
+        _url = State(initialValue: savedURL)
+    }
+
+    var body: some View {
+        NavigationStack {
+            PageScroll(spacing: 20) {
+                ProviderIcon(kind.iconAsset, size: 48).frame(maxWidth: .infinity)
+                Text("Bring your \(kind.rawValue) work along").font(KizukiTheme.title(26))
+                Text("Account sign-in isn’t available in this build. Add a public link instead. This does not authorize access to your account.")
+                    .font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
+                KizukiField(kind.rawValue, text: $url, prompt: kind.exampleURL)
+                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .onChange(of: url) { _, _ in attemptedSave = false }
+                Text("Paste a profile or work link. We’ll add https:// if needed. Links open externally; nothing loads automatically.")
+                    .font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons)
+                if attemptedSave {
+                    Text("Use a public \(kind.rawValue) link, such as \(kind.exampleURL).")
+                        .font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.salmon)
+                        .accessibilityIdentifier("widget-url-error")
+                }
+                if !savedURL.isEmpty {
+                    Button("Remove link", role: .destructive) { apply("") }.frame(minHeight: 44)
+                }
             }
+            .safeAreaInset(edge: .bottom) {
+                PrimaryButton("Use link") {
+                    if let normalized = kind.normalizedPortfolioURL(url) { apply(normalized) }
+                    else { attemptedSave = true }
+                }.padding(KizukiTheme.pageInset).background(KizukiTheme.charcoal)
+            }
+            .navigationTitle(kind.rawValue).navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } } }
+        }
     }
 }
 #endif

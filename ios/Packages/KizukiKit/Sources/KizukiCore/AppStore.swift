@@ -107,11 +107,17 @@ public final class AppStore {
     public func saveProfileBasics(name: String, bio: String, city: String, roles: [String], availability: Availability, compensation: Compensation, goal: Goal? = nil, links: [ProfileLink]? = nil) async -> Bool {
         var profile = own
         if let links {
-            guard Set(links.map(\.kind)).count == links.count,
-                  links.allSatisfy({ link in
-                      own.person.links.contains { $0.kind == link.kind && $0.url == link.url } || PortfolioWidgetDescriptor(link: link).state != .invalid
-                  }) else { return false }
-            profile.person.links = links
+            guard Set(links.map(\.kind)).count == links.count else { return false }
+            var validatedLinks: [ProfileLink] = []
+            for link in links {
+                if own.person.links.contains(where: { $0.kind == link.kind && $0.url == link.url }) {
+                    validatedLinks.append(link)
+                } else {
+                    guard let url = link.kind.normalizedPortfolioURL(link.url) else { return false }
+                    validatedLinks.append(ProfileLink(kind: link.kind, title: link.title, url: url, isEnabled: link.isEnabled))
+                }
+            }
+            profile.person.links = validatedLinks
         }
         if let goal { profile.goal = goal }
         profile.person.collaborationEnabled = profile.goal == .collaborate

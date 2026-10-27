@@ -119,6 +119,33 @@ struct PrototypeStoreTests {
         #expect(FixtureData.people[1].portraitAsset == "StockPortraitTwo")
     }
 
+    @Test func providerIconsShipForEveryWidget() {
+        for kind in LinkKind.allCases {
+            #expect(ProviderIcon.hasAsset(kind.iconAsset))
+        }
+    }
+
+    @Test func portfolioURLInputNormalizesWithoutWeakeningOriginValidation() {
+        for kind in LinkKind.allCases {
+            #expect(kind.normalizedPortfolioURL(" \n" + kind.exampleURL + "\n ") == "https://" + kind.exampleURL)
+            #expect(kind.normalizedPortfolioURL("https://evil.test/" + kind.exampleURL) == nil)
+            #expect(kind.normalizedPortfolioURL("http://" + kind.exampleURL) == nil)
+        }
+        #expect(LinkKind.youtube.normalizedPortfolioURL("HTTPS://WWW.YOUTUBE.COM/@artist") == "https://www.youtube.com/@artist")
+        for url in ["", "   ", "https://youtube.com.evil.test/video", "https://youtube.com@evil.test/video", "https://user@youtube.com/video", "https://youtube.com:443/video", "javascript:alert(1)", "file:///youtube.com/video", "youtube.com/a b", "youtube.com\\@evil.test", "//youtube.com/video"] {
+            #expect(LinkKind.youtube.normalizedPortfolioURL(url) == nil)
+        }
+    }
+
+    @Test func schemelessWidgetEditsSaveAndRetainHiddenState() async {
+        let store = await loadedStore()
+        let links = [ProfileLink(kind: .soundcloud, title: "Track", url: " soundcloud.com/artist/track\n", isEnabled: false)]
+        #expect(await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: store.me.roles, availability: .mid, compensation: .open, links: links))
+        await store.load()
+        #expect(store.me.links.first?.url == "https://soundcloud.com/artist/track")
+        #expect(store.me.links.first?.isEnabled == false)
+    }
+
     @Test func portfolioEditsValidateAndPersistWithoutChangingMatchingConsent() async {
         let store = await loadedStore()
         let before = store.own

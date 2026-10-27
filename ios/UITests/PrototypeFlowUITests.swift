@@ -22,37 +22,75 @@ final class PrototypeFlowUITests: XCTestCase {
         }
         let widgets = [("SoundCloud", "https://soundcloud.com/artist/track"), ("Bandcamp", "https://artist.bandcamp.com/album/example"), ("TikTok", "https://www.tiktok.com/@artist")]
         for (provider, url) in widgets {
-            let toggle = app.switches["Show \(provider) widget"]
-            reveal(toggle)
-            XCTAssertEqual(toggle.value as? String, "0")
-            toggle.tap()
-            XCTAssertFalse(button(app, "Save").isEnabled)
+            let connect = button(app, "Connect \(provider)")
+            reveal(connect)
+            connect.tap()
             let field = app.textFields[provider]
-            reveal(field)
+            XCTAssertTrue(field.waitForExistence(timeout: 5))
             field.tap()
-            field.typeText(url)
+            field.typeText(String(url.dropFirst("https://".count)))
+            button(app, "Use link").tap()
+            XCTAssertTrue(app.navigationBars[provider].waitForNonExistence(timeout: 5))
+            XCTAssertTrue(button(app, "Save").isEnabled)
         }
         button(app, "Save").tap()
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
         button(app, "Edit profile").tap()
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
         for (provider, url) in widgets {
-            let toggle = app.switches["Show \(provider) widget"]
+            let toggle = app.switches["Show \(provider) on profile"]
             reveal(toggle)
             XCTAssertEqual(toggle.value as? String, "1")
             toggle.tap()
+            let edit = button(app, "Edit \(provider)")
+            reveal(edit)
+            edit.tap()
+            XCTAssertTrue(app.textFields[provider].waitForExistence(timeout: 5))
             XCTAssertEqual(app.textFields[provider].value as? String, url)
+            button(app, "Cancel").tap()
+            XCTAssertTrue(app.navigationBars[provider].waitForNonExistence(timeout: 5))
         }
         button(app, "Save").tap()
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
         button(app, "Edit profile").tap()
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
         for (provider, url) in widgets {
-            let toggle = app.switches["Show \(provider) widget"]
+            let toggle = app.switches["Show \(provider) on profile"]
             reveal(toggle)
             XCTAssertEqual(toggle.value as? String, "0")
+            let edit = button(app, "Edit \(provider)")
+            reveal(edit)
+            edit.tap()
+            XCTAssertTrue(app.textFields[provider].waitForExistence(timeout: 5))
             XCTAssertEqual(app.textFields[provider].value as? String, url)
+            button(app, "Cancel").tap()
+            XCTAssertTrue(app.navigationBars[provider].waitForNonExistence(timeout: 5))
         }
+    }
+
+    @MainActor func testInvalidWidgetDraftCanBeCancelledWithoutBlockingProfileSave() {
+        let app = launch(["-fixtures", "-screen", "profile-edit"])
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 8))
+        let connect = button(app, "Connect SoundCloud")
+        for _ in 0..<30 {
+            let top = app.navigationBars["Edit profile"].frame.maxY + 12
+            let bottom = button(app, "Save").frame.minY - 20
+            if connect.isHittable && connect.frame.minY > top && connect.frame.maxY < bottom { break }
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            origin.withOffset(CGVector(dx: app.frame.midX, dy: top + (bottom - top) * 0.75))
+                .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: app.frame.midX, dy: top + (bottom - top) * 0.25)))
+        }
+        connect.tap()
+        XCTAssertTrue(app.textFields["SoundCloud"].waitForExistence(timeout: 5))
+        app.textFields["SoundCloud"].tap()
+        app.textFields["SoundCloud"].typeText("https://soundcloud.com.evil.test/artist")
+        button(app, "Use link").tap()
+        XCTAssertTrue(app.staticTexts["widget-url-error"].waitForExistence(timeout: 3))
+        button(app, "Cancel").tap()
+        XCTAssertTrue(app.navigationBars["SoundCloud"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(button(app, "Save").isEnabled)
+        button(app, "Save").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
     }
     @MainActor private func launch(_ args: [String] = ["-fixtures"]) -> XCUIApplication {
         continueAfterFailure = false
