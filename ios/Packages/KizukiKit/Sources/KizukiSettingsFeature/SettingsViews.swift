@@ -9,19 +9,18 @@ public struct SettingsRootView: View {
     private let symbols: [SettingsPage: String] = [.account: "person.crop.circle", .notifications: "bell", .privacy: "lock.shield", .help: "questionmark.circle", .legal: "doc.text"]
 
     public var body: some View {
-        PageScroll(spacing: 6) {
+        PageScroll(spacing: 9) {
             ForEach(SettingsPage.allCases, id: \.self) { page in
                 Button { router.push(.settingsPage(page)) } label: {
                     HStack(spacing: 14) {
-                        Image(systemName: symbols[page] ?? "gearshape").frame(width: 28).foregroundStyle(KizukiTheme.babyBlueIcons)
-                        Text(page.rawValue).font(KizukiTheme.bodyBold(15))
+                        Image(systemName: symbols[page] ?? "gearshape").font(.system(size: 24)).frame(width: 28).foregroundStyle(KizukiTheme.babyBlueIcons)
+                        Text(page.rawValue).font(KizukiTheme.bodyBold(13))
                         Spacer()
-                        Image(systemName: "chevron.right").foregroundStyle(KizukiTheme.babyBlueIcons)
+                        Image(systemName: "chevron.right").font(.system(size: 14)).foregroundStyle(KizukiTheme.babyBlueIcons)
                     }
-                    .frame(minHeight: 53).contentShape(Rectangle())
+                    .frame(minHeight: 44).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                Divider().overlay(KizukiTheme.grey)
             }
             Text("Kizuki prototype · fixture data only").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons).padding(.top, 12)
         }
@@ -64,7 +63,7 @@ public struct SettingsPageView: View {
             Text(title).font(KizukiTheme.bodyBold(15))
             Text(detail).font(KizukiTheme.body(13)).foregroundStyle(KizukiTheme.babyBlueIcons)
         }
-        .frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 44)
+        .frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 44).kizukiPanel()
     }
 
     @ViewBuilder private var account: some View {
@@ -97,7 +96,7 @@ public struct SettingsPageView: View {
         if store.blockedPeople.isEmpty { Text("You haven’t blocked anyone.").font(KizukiTheme.body(13)).foregroundStyle(KizukiTheme.babyBlueIcons) }
         ForEach(store.blockedPeople) { person in
             HStack {
-                PersonRow(id: person.id, name: person.name, subtitle: "@\(person.handle)", trailing: "nosign")
+                PersonRow(id: person.id, name: person.name, subtitle: "@\(person.handle)", trailing: "nosign", portraitAsset: person.portraitAsset)
                 Button("Unblock") { Task { await store.unblock(person.id) } }.buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
             }
         }

@@ -7,14 +7,14 @@ public enum Realm: String, CaseIterable, Sendable, Hashable, Codable {
 
     public var roleOptions: [String] {
         switch self {
-        case .film: ["Director", "Cinematographer", "Editor", "Producer", "Writer", "Sound designer"]
-        case .music: ["Musician", "Composer", "Producer", "Singer", "Sound designer", "Mix engineer"]
-        case .visualArts: ["Illustrator", "Photographer", "Animator", "Art director", "Printmaker", "Sculptor"]
+        case .film: ["Director", "Cinematographer", "Editor", "Producer", "Writer", "Sound designer", "Documentary maker", "Colourist", "Production designer", "Camera operator", "Costume designer", "VFX artist"]
+        case .music: ["Musician", "Composer", "Producer", "Singer", "Sound designer", "Mix engineer", "Songwriter", "DJ", "Guitarist", "Bassist", "Drummer", "Keys", "Cellist"]
+        case .visualArts: ["Painter", "Illustrator", "Photographer", "Animator", "Art director", "Printmaker", "Sculptor", "Graphic designer", "Motion designer", "Ceramicist", "Textile artist", "Collage artist", "Digital artist"]
         }
     }
 }
 
-public enum LinkKind: String, CaseIterable, Sendable, Hashable {
+public enum LinkKind: String, CaseIterable, Sendable, Hashable, Codable {
     case youtube = "YouTube", soundcloud = "SoundCloud", bandcamp = "Bandcamp"
     case instagram = "Instagram", letterboxd = "Letterboxd"
     /// v0 rule (decision 23 and the defaults list): three embeds, two link-outs.
@@ -30,7 +30,7 @@ public enum LinkKind: String, CaseIterable, Sendable, Hashable {
     }
 }
 
-public struct ProfileLink: Sendable, Hashable, Identifiable {
+public struct ProfileLink: Sendable, Hashable, Identifiable, Codable {
     public var id: String { kind.rawValue }
     public let kind: LinkKind
     public let title: String
@@ -38,7 +38,60 @@ public struct ProfileLink: Sendable, Hashable, Identifiable {
     public init(kind: LinkKind, title: String, url: String) { self.kind = kind; self.title = title; self.url = url }
 }
 
-public struct Person: Identifiable, Sendable, Hashable {
+public struct PortfolioWidgetDescriptor: Sendable, Equatable {
+    public enum State: Sendable { case invalid, linkOnly, embedAvailable, metadataRequired }
+    public let state: State
+    public let externalURL: URL?
+    public let embedURL: URL?
+    public var requiresPlaybackConsent: Bool { embedURL != nil || state == .metadataRequired }
+
+    public init(link: ProfileLink) {
+        guard var components = URLComponents(string: link.url), components.scheme == "https",
+              components.user == nil, components.password == nil, components.port == nil,
+              let host = components.host?.lowercased(), let original = components.url else {
+            state = .invalid; externalURL = nil; embedURL = nil; return
+        }
+        let allowed: Bool
+        switch link.kind {
+        case .youtube: allowed = ["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"].contains(host)
+        case .soundcloud: allowed = ["soundcloud.com", "www.soundcloud.com"].contains(host)
+        case .bandcamp: allowed = host == "bandcamp.com" || host.hasSuffix(".bandcamp.com")
+        case .instagram: allowed = ["instagram.com", "www.instagram.com"].contains(host)
+        case .letterboxd: allowed = ["letterboxd.com", "www.letterboxd.com"].contains(host)
+        }
+        guard allowed else { state = .invalid; externalURL = nil; embedURL = nil; return }
+        components.fragment = nil
+        let parts = components.path.split(separator: "/").map(String.init)
+        var player: URL?
+        var resolvedState: State = .linkOnly
+        if link.kind == .youtube {
+            let videoID: String?
+            if host == "youtu.be", parts.count == 1 { videoID = parts.first }
+            else if components.path == "/watch" { videoID = components.queryItems?.first(where: { $0.name == "v" })?.value }
+            else if parts.count == 2, ["shorts", "embed"].contains(parts[0]) { videoID = parts[1] }
+            else { videoID = nil }
+            if let videoID, videoID.range(of: "^[A-Za-z0-9_-]{11}$", options: .regularExpression) != nil {
+                player = URL(string: "https://www.youtube-nocookie.com/embed/\(videoID)?autoplay=0&playsinline=1")
+                resolvedState = .embedAvailable
+            }
+        } else if link.kind == .soundcloud, parts.count == 2 || (parts.count == 3 && parts[1] == "sets") {
+            components.query = nil
+            var widget = URLComponents(string: "https://w.soundcloud.com/player/")!
+            widget.queryItems = [URLQueryItem(name: "url", value: components.url?.absoluteString), URLQueryItem(name: "auto_play", value: "false")]
+            player = widget.url
+            resolvedState = .embedAvailable
+        } else if link.kind == .bandcamp, parts.count == 2, ["album", "track"].contains(parts[0]) {
+            resolvedState = .metadataRequired
+        }
+        state = resolvedState
+        externalURL = original
+        embedURL = player
+    }
+}
+
+public struct Person: Identifiable, Sendable, Hashable, Codable {
+    public var portraitAsset: String?
+    public var collaborationEnabled: Bool?
     public let id: UUID
     public var name: String
     public var handle: String
@@ -57,20 +110,22 @@ public struct Person: Identifiable, Sendable, Hashable {
     }
     public var primaryRole: String { roles.first ?? realm.rawValue }
     public var firstName: String { name.split(separator: " ").first.map(String.init) ?? name }
+    public var acceptsCollaboration: Bool { collaborationEnabled != false }
 }
 
-public enum Goal: String, CaseIterable, Sendable { case collaborate = "I want to collaborate", explore = "Explore and get inspired" }
-public enum Intent: String, CaseIterable, Sendable { case start = "Start a project", join = "Join a project" }
-public enum Compensation: String, CaseIterable, Sendable, Hashable {
+public enum Goal: String, CaseIterable, Sendable, Codable { case collaborate = "I want to collaborate", explore = "Explore and get inspired" }
+public enum Intent: String, CaseIterable, Sendable, Codable { case start = "Start a project", join = "Join a project" }
+public enum Compensation: String, CaseIterable, Sendable, Hashable, Codable {
     case paid = "Paid work", passion = "Passion projects", open = "Open to either"
 }
-public enum WorkMode: String, CaseIterable, Sendable, Hashable { case local = "Local", remote = "Remote", both = "Both" }
-public enum Availability: String, CaseIterable, Sendable, Hashable {
+public enum WorkMode: String, CaseIterable, Sendable, Hashable, Codable { case local = "Local", remote = "Remote", both = "Both" }
+public enum Availability: String, CaseIterable, Sendable, Hashable, Codable {
     case low = "Under 5 hours / week", mid = "5–10 hours / week", high = "10+ hours / week"
 }
 
 /// The signed-in creator: public profile fields plus private onboarding answers.
-public struct OwnProfile: Sendable, Equatable {
+public struct OwnProfile: Sendable, Equatable, Codable {
+    public var onboardingCompleted: Bool?
     public var person: Person
     public var goal: Goal = .collaborate
     public var intent: Intent = .join
@@ -83,6 +138,27 @@ public struct OwnProfile: Sendable, Equatable {
     public var useFavouritesForMatching = true
     public var useTasteForMatching = true
     public init(person: Person) { self.person = person }
+}
+
+public enum RoleSelection {
+    public static func isValid(_ roles: [String], realm: Realm, allowEmpty: Bool = false) -> Bool {
+        (allowEmpty || !roles.isEmpty) && roles.count <= 4 && Set(roles).count == roles.count && roles.allSatisfy(realm.roleOptions.contains)
+    }
+
+    public static func toggling(_ role: String, in roles: [String], realm: Realm) -> [String] {
+        guard realm.roleOptions.contains(role) else { return roles }
+        if roles.contains(role) { return roles.count > 1 ? roles.filter { $0 != role } : roles }
+        return roles.count < 4 ? roles + [role] : roles
+    }
+
+    public static func promoting(_ role: String, in roles: [String]) -> [String] {
+        guard roles.contains(role) else { return roles }
+        return [role] + roles.filter { $0 != role }
+    }
+
+    public static func score(_ roles: [String], matching candidates: [String]) -> Int {
+        roles.enumerated().reduce(0) { $0 + (candidates.contains($1.element) ? ($1.offset == 0 ? 4 : 1) : 0) }
+    }
 }
 
 public enum ProjectStatus: String, Sendable, Hashable, CaseIterable { case draft = "Draft", published = "Published", closed = "Closed", past = "Past" }

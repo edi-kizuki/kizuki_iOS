@@ -1,6 +1,6 @@
 import XCTest
 
-/// Clicks through the fixture-backed prototype: entry, 12 onboarding steps, every tab, and
+/// Clicks through the fixture-backed prototype: entry, onboarding, every tab, and
 /// request → accept → Crew → chat. No backend is involved.
 final class PrototypeFlowUITests: XCTestCase {
     @MainActor private func launch(_ args: [String] = ["-fixtures"]) -> XCUIApplication {
@@ -11,8 +11,41 @@ final class PrototypeFlowUITests: XCTestCase {
         return app
     }
 
-    private func button(_ app: XCUIApplication, _ label: String) -> XCUIElement {
+    @MainActor private func button(_ app: XCUIApplication, _ label: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label ==[c] %@", label)).firstMatch
+    }
+
+    @MainActor func testPainterIsSelectableInVisualArtsOnboarding() {
+        let app = launch(["-fixtures", "-screen", "onb-realm"])
+        button(app, "Visual arts").tap()
+        button(app, "Continue").tap()
+        let painter = button(app, "Painter")
+        XCTAssertTrue(painter.waitForExistence(timeout: 5))
+        XCTAssertEqual(painter.value as? String, "Main")
+        button(app, "Illustrator").tap()
+        XCTAssertEqual(button(app, "Illustrator").value as? String, "Secondary")
+    }
+
+    @MainActor func testInspirationPathSkipsRolesAndLandsInDiscovery() {
+        let app = launch(["-fixtures", "-screen", "onb-goal"])
+        button(app, "Explore and get inspired").tap()
+        button(app, "Continue").tap()
+        XCTAssertTrue(app.staticTexts["WHAT WORLDS INSPIRE YOU?"].exists)
+        button(app, "Visual arts").tap()
+        button(app, "Continue").tap()
+        XCTAssertTrue(app.staticTexts["WHAT CATCHES YOUR EYE?"].exists)
+        button(app, "Continue").tap()
+        button(app, "Continue").tap()
+        XCTAssertTrue(app.staticTexts["WHERE DO YOU CREATE?"].exists)
+        XCTAssertFalse(app.staticTexts["How do you want to work?"].exists)
+        button(app, "Continue").tap()
+        button(app, "Continue").tap()
+        button(app, "Start exploring").tap()
+        XCTAssertTrue(app.tabBars.buttons["Search"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["Search"].isSelected)
+        app.tabBars.buttons["Profile"].tap()
+        XCTAssertTrue(app.staticTexts["Here for inspiration"].exists)
+        XCTAssertFalse(app.staticTexts["I’m available to collab"].exists)
     }
 
     @MainActor func testDebugDefaultAndTabBarAccessibilityScreenshots() {
@@ -41,8 +74,8 @@ final class PrototypeFlowUITests: XCTestCase {
         XCTAssertFalse(button(app, "Continue").isEnabled)
         button(app, "I am 18 or older and agree to the Terms.").tap()
         button(app, "Continue").tap()
-        // 12 onboarding steps; primers have a single Continue and nothing else.
-        for step in 1...11 {
+        // The final location primer enters the app without an extra confirmation screen.
+        for step in 1...10 {
             let next = button(app, "Continue")
             XCTAssertTrue(next.waitForExistence(timeout: 3), "step \(step)")
             if step == 10 || step == 11 { XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label ==[c] 'Continue'")).count, 1) }
@@ -186,7 +219,91 @@ final class PrototypeFlowUITests: XCTestCase {
     @MainActor func testGetDiscoveredCardOpensEditProfile() {
         let app = launch(["-fixtures", "-screen", "profile"])
         XCTAssertTrue(app.staticTexts["Get discovered"].waitForExistence(timeout: 8))
-        button(app, "Write a short bio").tap()
+        button(app, "Write a short bio (10+ characters)").tap()
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testFourOnboardingRolesAndMainPromotion() {
+        let app = launch(["-fixtures", "-screen", "onb-roles"])
+        XCTAssertTrue(button(app, "Producer").waitForExistence(timeout: 8))
+        for role in ["Cinematographer", "Producer"] { button(app, role).tap() }
+        button(app, "Editor").tap()
+        XCTAssertFalse(button(app, "Make Editor main").exists)
+        button(app, "Make Producer main").tap()
+        XCTAssertFalse(button(app, "Make Producer main").exists)
+        XCTAssertTrue(button(app, "Make Director main").exists)
+        button(app, "Producer").tap()
+        XCTAssertFalse(button(app, "Make Director main").exists)
+        button(app, "Editor").tap()
+        XCTAssertTrue(button(app, "Make Editor main").exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "four-onboarding-roles"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    @MainActor func testEditorFourRolesAndMainAtNormalAndLargeText() {
+        for size in ["UICTContentSizeCategoryL", "UICTContentSizeCategoryAccessibilityXXXL"] {
+            let app = launch(["-fixtures", "-screen", "profile-edit", "-UIPreferredContentSizeCategoryName", size])
+            XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 8))
+            let scroll = app.scrollViews.firstMatch
+            func scrollStep(down: Bool) {
+                let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: down ? 0.65 : 0.35))
+                let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: down ? 0.35 : 0.65))
+                start.press(forDuration: 0.05, thenDragTo: end)
+            }
+            func reveal(_ element: XCUIElement) {
+                for _ in 0..<20 {
+                    if element.isHittable && element.frame.minY > app.navigationBars["Edit profile"].frame.maxY + 8 && element.frame.maxY < button(app, "Save").frame.minY - 16 { return }
+                    scrollStep(down: true)
+                }
+                XCTAssertTrue(element.isHittable)
+            }
+            for role in ["Cinematographer", "Producer"] {
+                let choice = button(app, role)
+                reveal(choice)
+                choice.tap()
+            }
+            let promote = button(app, "Make Producer main")
+            reveal(promote)
+            promote.tap()
+            let producer = button(app, "Producer")
+            for _ in 0..<20 {
+                if producer.isHittable { break }
+                scrollStep(down: false)
+            }
+            XCTAssertEqual(producer.value as? String, "Main")
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "four-editor-roles-\(size)"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            button(app, "Save").tap()
+            XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
+            button(app, "Edit profile").tap()
+            XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
+            reveal(producer)
+            XCTAssertEqual(producer.value as? String, "Main")
+            app.terminate()
+        }
+    }
+
+    @MainActor func testSavingProfileBasicsHidesChecklistImmediately() {
+        let app = launch(["-fixtures", "-screen", "profile"])
+        XCTAssertTrue(app.staticTexts["Get discovered"].waitForExistence(timeout: 8))
+        button(app, "Write a short bio (10+ characters)").tap()
+        let bio = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Bio' AND (elementType == %d OR elementType == %d)", XCUIElement.ElementType.textField.rawValue, XCUIElement.ElementType.textView.rawValue)).firstMatch
+        XCTAssertTrue(bio.waitForExistence(timeout: 5))
+        bio.tap()
+        bio.typeText("Making films with friends.")
+        XCTAssertTrue(button(app, "Save").isHittable)
+        button(app, "Save").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Get discovered"].exists)
+        app.tabBars.buttons["Home"].tap()
+        app.tabBars.buttons["Profile"].tap()
+        XCTAssertFalse(app.staticTexts["Get discovered"].exists)
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(bio.waitForExistence(timeout: 5))
+        XCTAssertTrue((bio.value as? String)?.contains("Making films with friends.") == true)
     }
 }

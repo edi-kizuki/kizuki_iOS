@@ -6,6 +6,7 @@ import SwiftUI
 public struct HomeView: View {
     @Environment(AppStore.self) private var store
     @Environment(AppRouter.self) private var router
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     public init() {}
 
     private var draft: Project? { store.projects([.draft]).first { $0.ownerID == store.me.id } }
@@ -31,6 +32,9 @@ public struct HomeView: View {
                     }
                     VStack(alignment: .leading, spacing: 16) {
                         SectionTitle("Recommended projects")
+                        if store.visibleProjectRecommendations.isEmpty {
+                            KizukiEmptyState(title: "Room for something new", message: "Projects will appear here as your community grows.")
+                        }
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 16) {
                                 ForEach(store.visibleProjectRecommendations, id: \.item.id) { rec in
@@ -42,13 +46,16 @@ public struct HomeView: View {
                     .kizukiCard().padding(.horizontal, 12)
                     VStack(alignment: .leading, spacing: 16) {
                         SectionTitle("People that you might like")
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 3), spacing: 18) {
+                        if store.visiblePeopleRecommendations.isEmpty {
+                            KizukiEmptyState(title: "Your people are on their way", message: "Check back for new creators to collaborate with.")
+                        }
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: dynamicTypeSize.isAccessibilitySize ? 1 : 3), spacing: 18) {
                             ForEach(store.visiblePeopleRecommendations.prefix(9), id: \.item.id) { rec in
                                 Button { router.push(.profile(rec.item.id)) } label: {
                                     VStack(spacing: 6) {
-                                        PersonAvatar(rec.item.id, size: 72)
-                                        Text(rec.item.name).font(KizukiTheme.bodyMedium(13)).lineLimit(1)
-                                        Text(rec.item.primaryRole).font(KizukiTheme.body(11)).foregroundStyle(KizukiTheme.babyBlueIcons).lineLimit(1)
+                                        PersonAvatar(rec.item.id, size: 72, portraitAsset: rec.item.portraitAsset)
+                                        Text(rec.item.name).font(KizukiTheme.bodyMedium(13)).multilineTextAlignment(.center)
+                                        Text(rec.item.primaryRole).font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons).multilineTextAlignment(.center)
                                         ReasonChips(Array(rec.reasons.prefix(1)))
                                     }
                                     .frame(maxWidth: .infinity)
@@ -77,7 +84,7 @@ public struct ProjectCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 Artwork(seed: project.artSeed, height: 200, title: project.title)
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(project.title).font(KizukiTheme.bodyMedium(20)).lineLimit(1)
+                    Text(project.title).font(KizukiTheme.bodyMedium(20)).fixedSize(horizontal: false, vertical: true)
                     Text("\(project.city) · \(project.realm.rawValue)").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
                     ReasonChips(reasons)
                 }

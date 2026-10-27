@@ -31,8 +31,12 @@ struct PrototypeRoot: View {
                 KizukiTheme.charcoal.overlay(ProgressView().tint(KizukiTheme.cream))
             case let .entry(start):
                 EntryFlow(start: start, autoAdvanceSplash: launchScreen == nil, initial: store.own) { draft in
-                    store.updateOwn { $0 = draft }
-                    withAnimation { phase = .main }
+                    let saved = await store.completeOnboarding(draft)
+                    if saved {
+                        router.tab = draft.goal == .explore ? .search : .home
+                        withAnimation { phase = .main }
+                    }
+                    return saved
                 }
             case .main:
                 MainTabs()
@@ -46,7 +50,8 @@ struct PrototypeRoot: View {
             await store.load()
             if let id = launchScreen, let entry = EntryScreen(id: id) { phase = .entry(entry); return }
             if let id = launchScreen, let screen = GalleryScreen(rawValue: id) { screen.apply(store: store, router: router); phase = .main; return }
-            phase = .entry(.splash)
+            router.tab = store.own.goal == .explore ? .search : .home
+            phase = store.own.onboardingCompleted == true ? .main : .entry(.splash)
         }
     }
 }

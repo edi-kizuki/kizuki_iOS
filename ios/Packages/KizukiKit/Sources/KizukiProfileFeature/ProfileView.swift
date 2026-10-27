@@ -6,6 +6,7 @@ import SwiftUI
 public struct ProfileView: View {
     @Environment(AppStore.self) private var store
     @Environment(AppRouter.self) private var router
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let personID: UUID
     let embedsInTab: Bool
     @State private var confirmingRemoval = false
@@ -44,44 +45,54 @@ public struct ProfileView: View {
     }
 
     @ViewBuilder private func content(_ person: Person, isMe: Bool) -> some View {
-        HStack(alignment: .center, spacing: 16) {
-            PersonAvatar(person.id, size: 92)
+        KizukiPatternBackground(tint: coverAccent(person.id))
+            .frame(height: 184)
+            .background(KizukiTheme.darkGrey)
+            .overlay { LinearGradient(colors: [.clear, KizukiTheme.charcoal], startPoint: .top, endPoint: .bottom) }
+            .padding(.horizontal, -20).padding(.top, -20).padding(.bottom, -44)
+            .accessibilityHidden(true)
+        let identityLayout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16)) : AnyLayout(HStackLayout(alignment: .center, spacing: 16))
+        identityLayout {
+            PersonAvatar(person.id, size: 92, portraitAsset: person.portraitAsset)
             VStack(alignment: .leading, spacing: 4) {
-                Text(person.name).font(KizukiTheme.title(32))
+                Text(person.name).font(KizukiTheme.poppins(16, weight: .bold, relativeTo: .headline))
                 Text("@\(person.handle)").font(KizukiTheme.mono(12)).foregroundStyle(KizukiTheme.babyBlueIcons)
-                Text("\(person.primaryRole) · \(person.realm.rawValue)").font(KizukiTheme.body(14))
+                if person.portraitAsset != nil { Text("Demo profile · stock portrait").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons) }
+                Text(person.acceptsCollaboration ? "\(person.primaryRole) · \(person.realm.rawValue)" : "Here for inspiration").font(KizukiTheme.body(14))
                 Label(person.city, systemImage: "mappin.and.ellipse").font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons)
             }
             Spacer()
         }
         if isMe {
             OutlineButton("Edit profile") { router.sheet = .editProfile }
-            if store.discoveryDoneCount < store.discoverySteps.count { GetDiscoveredCard() }
+            if !store.isProfileComplete { GetDiscoveredCard() }
         } else if store.isInCrew(person.id) {
             PrimaryButton("Open chat", color: KizukiTheme.blue) { router.push(.conversation(person.id)) }
         } else if let incoming = store.incomingPending(from: person.id) {
             PrimaryButton("Review their request", color: KizukiTheme.blue) { router.push(.request(incoming.id)) }
-        } else {
+        } else if person.acceptsCollaboration {
             let pending = store.pendingRequest(for: person.id, project: nil) != nil
             PrimaryButton(pending ? "Wish sent" : "Wish to Collab", color: KizukiTheme.yellow, textColor: KizukiTheme.charcoal) {
                 router.sheet = .compose(personID: person.id, projectID: nil)
             }
             .disabled(pending)
         }
-        if !person.bio.isEmpty { Text(person.bio).font(KizukiTheme.body(15)) }
-        FlowLayout(spacing: 8) { ForEach(person.roles, id: \.self) { KizukiChip($0) } }
+        if !person.bio.isEmpty { Text(person.bio).font(KizukiTheme.poppins(15)) }
+        FlowLayout(spacing: 8) { ForEach(person.roles, id: \.self) { role in KizukiChip("\(role) · \(person.roles.first == role ? "Main" : "Secondary")") } }
         // Availability is public on every profile (decision 51). Work mode and pay preference stay owner-only.
+        if person.acceptsCollaboration {
         let availability = isMe ? store.own.availability : person.availability
         VStack(alignment: .leading, spacing: 6) {
             Label(isMe ? "I’m available to collab" : "\(person.firstName) is available to collab", systemImage: "battery.75percent").font(KizukiTheme.bodyMedium(14))
-            Text(availability.rawValue).font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            Text(availability.rawValue).font(KizukiTheme.monoMedium(12)).tracking(-0.36).foregroundStyle(KizukiTheme.babyBlueIcons)
             if isMe {
                 Text("\(store.own.workMode.rawValue) · \(store.own.compensation.rawValue)").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
                 Text("Everyone sees your availability. Only you see work mode and pay preference.").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons)
             }
         }
-        .padding(16).frame(maxWidth: .infinity, alignment: .leading).background(KizukiTheme.grey.opacity(0.5), in: RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
+        .frame(maxWidth: .infinity, alignment: .leading).kizukiPanel()
         .accessibilityElement(children: .combine)
+        }
         let favourites = isMe ? (store.own.showFavourites ? Array(store.own.favourites).sorted() : []) : person.favourites
         if !favourites.isEmpty {
             SectionTitle("Favourites")
@@ -89,21 +100,12 @@ public struct ProfileView: View {
         }
         if !person.links.isEmpty {
             SectionTitle("Work")
-            ForEach(person.links.filter { $0.kind.isEmbed }) { EmbedCard(link: $0) }
-            ForEach(person.links.filter { !$0.kind.isEmbed }) { link in
-                HStack {
-                    Image(systemName: link.kind.symbol).frame(width: 28)
-                    VStack(alignment: .leading) { Text(link.kind.rawValue).font(KizukiTheme.bodyMedium(15)); Text("Opens outside Kizuki").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons) }
-                    Spacer(); Image(systemName: "arrow.up.right").foregroundStyle(KizukiTheme.babyBlueIcons)
-                }
-                .padding(14).frame(minHeight: 56).overlay(RoundedRectangle(cornerRadius: 10).stroke(KizukiTheme.babyBlueIcons.opacity(0.4), lineWidth: 1))
-                .accessibilityElement(children: .combine).accessibilityLabel("\(link.kind.rawValue), opens outside Kizuki")
-            }
+            ForEach(person.links) { EmbedCard(link: $0) }
         }
         let photos = store.visiblePhotos.filter { $0.authorID == person.id }
         SectionTitle("Collabs")
         if photos.isEmpty {
-            Text(isMe ? "Post a collab from Suki > Create." : "No collab photos yet.").font(KizukiTheme.body(13)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            KizukiEmptyState(title: "No collabs yet", message: isMe ? "Share your process from Suki > Create whenever you’re ready." : "Their creative process will appear here.")
         } else {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
                 ForEach(photos) { photo in
@@ -112,6 +114,12 @@ public struct ProfileView: View {
                 }
             }
         }
+    }
+
+    private func coverAccent(_ id: UUID) -> Color {
+        let palette = [KizukiTheme.orange, KizukiTheme.blue, KizukiTheme.yellow, KizukiTheme.salmon, KizukiTheme.babyBlue]
+        let index = id.uuidString.utf8.reduce(0) { ($0 * 31 + Int($1)) % palette.count }
+        return palette[index].opacity(0.65)
     }
 }
 
@@ -131,7 +139,7 @@ struct GetDiscoveredCard: View {
                 Text("\(done) of \(steps.count)").font(KizukiTheme.mono(12)).foregroundStyle(KizukiTheme.charcoal)
                     .padding(.horizontal, 10).padding(.vertical, 4).background(KizukiTheme.yellow, in: Capsule())
             }
-            Text("A fuller profile helps the right people find you and say yes.").font(KizukiTheme.body(13)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            Text("Finish your basics so people know who you are. Work links, favourites and collab posts are optional.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ProgressView(value: Double(done), total: Double(steps.count)).tint(KizukiTheme.orange).accessibilityHidden(true)
             ForEach(steps) { step in
                 Button { open(step) } label: {
@@ -144,44 +152,43 @@ struct GetDiscoveredCard: View {
                     }
                     .frame(minHeight: 44).contentShape(Rectangle())
                 }
-                .buttonStyle(.plain).allowsHitTesting(!step.done)
+                .buttonStyle(.plain).disabled(step.done)
                 .accessibilityLabel(step.done ? "\(step.title), done" : step.title)
             }
         }
         .padding(18).frame(maxWidth: .infinity, alignment: .leading)
-        .background(KizukiTheme.grey.opacity(0.5), in: RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
+        .background(KizukiTheme.surface, in: RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
         .overlay(RoundedRectangle(cornerRadius: KizukiTheme.cardRadius).stroke(KizukiTheme.orange.opacity(0.7), lineWidth: 1))
     }
 
     private func open(_ step: AppStore.DiscoveryStep) {
-        switch step.kind {
-        case .collab: router.tab = .suki; router.sukiSection = .create
-        default: router.sheet = .editProfile
-        }
+        router.sheet = .editProfile
     }
 }
 
-/// Mock embedded player. The live app uses an allow-listed, locked WKWebView (concept 2.12).
+/// Validated portfolio destination; external links until consent-gated players are integrated.
 struct EmbedCard: View {
     let link: ProfileLink
-    @State private var playing = false
     var body: some View {
+        let descriptor = PortfolioWidgetDescriptor(link: link)
         VStack(alignment: .leading, spacing: 0) {
             ZStack {
                 LinearGradient(colors: link.kind == .youtube ? [KizukiTheme.ink, KizukiTheme.orange] : link.kind == .soundcloud ? [KizukiTheme.charcoal, KizukiTheme.blue] : [KizukiTheme.grey, KizukiTheme.yellow],
                                startPoint: .topLeading, endPoint: .bottomTrailing)
-                Button { playing.toggle() } label: {
-                    Image(systemName: playing ? "pause.circle.fill" : "play.circle.fill").font(.system(size: 52)).foregroundStyle(KizukiTheme.cream)
-                        .frame(width: 60, height: 60)
-                }
-                .accessibilityLabel(playing ? "Pause \(link.title)" : "Play \(link.title)")
+                Image(systemName: link.kind.symbol).font(.system(size: 40)).foregroundStyle(KizukiTheme.cream)
             }
             .frame(height: 130)
             HStack {
                 Image(systemName: link.kind.symbol)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(link.title).font(KizukiTheme.bodyMedium(14)).lineLimit(1)
-                    Text("\(link.kind.rawValue) · embedded player (mock)").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons)
+                    Text(descriptor.state == .invalid ? "Demo link · not connected" : "\(link.kind.rawValue) · opens externally").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons)
+                    if let url = descriptor.externalURL {
+                        Link("Open on \(link.kind.rawValue)", destination: url).frame(minHeight: 44)
+                    }
+                    if descriptor.requiresPlaybackConsent {
+                        Text("In-app playback is not connected yet. Nothing loads automatically.").font(KizukiTheme.body(12))
+                    }
                 }
                 Spacer()
             }
@@ -200,36 +207,99 @@ public struct EditProfileView: View {
     @State private var roles: [String] = []
     @State private var availability: Availability = .mid
     @State private var compensation: Compensation = .open
+    @State private var goal: Goal = .collaborate
+    @State private var linkURLs: [LinkKind: String] = [:]
+    @State private var saving = false
+    @State private var saveFailed = false
     public init() {}
 
     public var body: some View {
         PageScroll(spacing: 18) {
+            PersonAvatar(store.me.id, size: 72, portraitAsset: store.me.portraitAsset).frame(maxWidth: .infinity)
+            Text("Your profile basics").font(KizukiTheme.title(26))
+            Text("Add your name, a bio of at least 10 characters, your city and roles. You can save your progress at any time.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
             KizukiField("Display name", text: $name)
             KizukiTextArea("Bio", text: $bio)
             KizukiField("City", text: $city)
-            Text("Roles (up to three)").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            Text("I’m here to").font(KizukiTheme.title(22))
+            ForEach(Goal.allCases, id: \.self) { option in
+                ChoiceRow(option.rawValue, selected: goal == option) {
+                    goal = option
+                    if goal == .collaborate && roles.isEmpty { roles = [store.me.realm.roleOptions[0]] }
+                }
+            }
+            if goal == .collaborate {
+            Text("Roles: one main, up to three secondary").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
             FlowLayout(spacing: 8) {
                 ForEach(store.me.realm.roleOptions, id: \.self) { role in
                     Button {
-                        if roles.contains(role) { if roles.count > 1 { roles.removeAll { $0 == role } } } else if roles.count < 3 { roles.append(role) }
+                        roles = RoleSelection.toggling(role, in: roles, realm: store.me.realm)
                     } label: { KizukiChip(role, selected: roles.contains(role)).frame(minHeight: 44) }.buttonStyle(.plain)
+                        .accessibilityValue(roles.first == role ? "Main" : roles.contains(role) ? "Secondary" : "Not selected")
+                }
+            }
+            ForEach(roles, id: \.self) { role in
+                HStack {
+                    Text("\(role) · \(roles.first == role ? "Main" : "Secondary")").font(KizukiTheme.body(14)).fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    if roles.first != role {
+                        Button("Make main") { roles = RoleSelection.promoting(role, in: roles) }
+                            .accessibilityLabel("Make \(role) main").frame(minHeight: 44)
+                    }
                 }
             }
             Text("Availability").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ForEach(Availability.allCases, id: \.self) { a in ChoiceRow(a.rawValue, selected: availability == a) { availability = a } }
             Text("Compensation preference").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ForEach(Compensation.allCases, id: \.self) { c in ChoiceRow(c.rawValue, selected: compensation == c) { compensation = c } }
-            PrimaryButton("Save") {
-                store.updateOwn { $0.person.name = name; $0.person.bio = bio; $0.person.city = city; $0.person.roles = roles; $0.availability = availability; $0.compensation = compensation }
-                router.sheet = nil
             }
+            Text("Portfolio links").font(KizukiTheme.title(22))
+            Text("Add your work from any of these platforms. Links open externally for now. They are not used for matching.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            ForEach(LinkKind.allCases, id: \.self) { kind in
+                KizukiField(kind.rawValue, text: Binding(get: { linkURLs[kind] ?? "" }, set: { linkURLs[kind] = $0 }), prompt: "https://…")
+                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+            }
+            if !validLinks { Text("Use an HTTPS link from the named platform. Remove a link by clearing its field.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.salmon) }
         }
+        .disabled(saving)
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 12) {
+                if saving { ProgressView("Saving profile").tint(KizukiTheme.cream) }
+                if saveFailed { Text("Couldn’t save your profile. Please try again.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.salmon) }
+                PrimaryButton("Save") {
+                    saving = true
+                    saveFailed = false
+                    Task {
+                        let saved = await store.saveProfileBasics(name: name, bio: bio, city: city, roles: roles, availability: availability, compensation: compensation, goal: goal, links: editedLinks)
+                        saving = false
+                        if saved { router.sheet = nil } else { saveFailed = true }
+                    }
+                }
+                .disabled(saving || !validLinks)
+            }
+            .padding(KizukiTheme.pageInset).background(KizukiTheme.charcoal)
+        }
+        .interactiveDismissDisabled(saving)
         .navigationTitle("Edit profile").navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { router.sheet = nil } } }
+        .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { router.sheet = nil }.disabled(saving) } }
         .onAppear {
             name = store.me.name; bio = store.me.bio; city = store.me.city; roles = store.me.roles
             availability = store.own.availability; compensation = store.own.compensation
+            goal = store.own.goal
+            linkURLs = Dictionary(uniqueKeysWithValues: store.me.links.map { ($0.kind, $0.url) })
         }
+    }
+
+    private var editedLinks: [ProfileLink] {
+        LinkKind.allCases.compactMap { kind in
+            let url = (linkURLs[kind] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !url.isEmpty else { return nil }
+            let title = store.me.links.first(where: { $0.kind == kind && $0.url == url })?.title ?? kind.rawValue
+            return ProfileLink(kind: kind, title: title, url: url)
+        }
+    }
+    private var validLinks: Bool {
+        editedLinks.allSatisfy { store.me.links.contains($0) || PortfolioWidgetDescriptor(link: $0).state != .invalid }
     }
 }
 #endif

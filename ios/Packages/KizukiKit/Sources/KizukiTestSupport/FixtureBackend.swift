@@ -2,7 +2,7 @@
 import Foundation
 import KizukiCore
 
-/// In-memory implementation of every repository protocol. State lives for the process lifetime.
+/// Fixture repositories with optional durable own-profile storage.
 public actor FixtureBackend: OwnProfileRepository, DirectoryRepository, ProjectRepository, RequestRepository, ConversationRepository, SafetyRepository, SessionRepository, ProfileRepository {
     private var ownProfile = FixtureData.ownProfile
     private var photoList = FixtureData.photos
@@ -12,7 +12,27 @@ public actor FixtureBackend: OwnProfileRepository, DirectoryRepository, ProjectR
     private var blockedSet: Set<UUID> = [FixtureData.personID(19)]
 
     private let auth = AsyncStream<SessionEvent>.makeStream()
-    public init() {}
+    private let storageURL: URL?
+    private struct Snapshot: Codable {
+        var version: Int
+        var profile: OwnProfile
+    }
+    public init(storageURL: URL? = nil) {
+        self.storageURL = storageURL
+        if let storageURL, let data = try? Data(contentsOf: storageURL),
+           let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data), snapshot.version == 1,
+           RoleSelection.isValid(snapshot.profile.person.roles, realm: snapshot.profile.person.realm, allowEmpty: true) {
+            var restored = snapshot.profile
+            if restored.goal == .explore && restored.person.collaborationEnabled == nil {
+                restored.person.collaborationEnabled = false
+            }
+            ownProfile = restored
+        }
+    }
+
+    public nonisolated static var runtimeStorageURL: URL {
+        URL.applicationSupportDirectory.appendingPathComponent("KizukiPrototype/profile-v1.json")
+    }
 
     public func events() -> AsyncStream<SessionEvent> {
         auth.continuation.yield(.signedIn(userID: FixtureData.meID))
@@ -25,14 +45,24 @@ public actor FixtureBackend: OwnProfileRepository, DirectoryRepository, ProjectR
                        onboardingCompletedAt: .distantPast, eligibleAt: .distantPast)
     }
 
-    public nonisolated static func dependencies() -> Dependencies {
-        let backend = FixtureBackend()
+    public nonisolated static func dependencies(storageURL: URL? = nil) -> Dependencies {
+        let backend = FixtureBackend(storageURL: storageURL)
         return Dependencies(sessions: backend, profiles: backend, own: backend, directory: backend, projects: backend, requests: backend, conversations: backend, safety: backend)
     }
 
     // MARK: OwnProfileRepository
     public func own() -> OwnProfile { ownProfile }
-    public func save(_ profile: OwnProfile) { ownProfile = profile }
+    public func save(_ profile: OwnProfile) throws {
+        guard RoleSelection.isValid(profile.person.roles, realm: profile.person.realm, allowEmpty: true) else {
+            throw CocoaError(.coderInvalidValue)
+        }
+        if let storageURL {
+            let data = try JSONEncoder().encode(Snapshot(version: 1, profile: profile))
+            try FileManager.default.createDirectory(at: storageURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try data.write(to: storageURL, options: .atomic)
+        }
+        ownProfile = profile
+    }
 
     // MARK: DirectoryRepository
     public func people() -> [Person] { Array(FixtureData.people.dropFirst()) }
@@ -49,19 +79,28 @@ public actor FixtureBackend: OwnProfileRepository, DirectoryRepository, ProjectR
             if ownProfile.useTasteForMatching, ownProfile.tasteCards.contains(p.artSeed % 6) { reasons.append("Shared taste") }
             if p.compensation == .paid, ownProfile.compensation != .passion { reasons.append("Paid work") }
             return Recommendation(item: p, reasons: reasons.isEmpty ? ["New in Berlin"] : reasons)
-        }
+        }.enumerated().sorted {
+            let left = RoleSelection.score(ownProfile.person.roles, matching: $0.element.item.rolesNeeded)
+            let right = RoleSelection.score(ownProfile.person.roles, matching: $1.element.item.rolesNeeded)
+            return left == right ? $0.offset < $1.offset : left > right
+        }.map(\.element)
     }
     public func recommendedPeople() -> [Recommendation<Person>] {
         FixtureData.people.enumerated().dropFirst().map { index, person in
             var reasons: [String] = []
             if person.city == ownProfile.person.city { reasons.append("Nearby") }
             if person.realm == ownProfile.person.realm { reasons.append("Same realm") } else { reasons.append("Different realm") }
+            if RoleSelection.score(ownProfile.person.roles, matching: person.roles) > 0 { reasons.append("Shared roles") }
             if ownProfile.useFavouritesForMatching, person.favourites.contains(where: ownProfile.favourites.contains) { reasons.append("Shared favourites") }
             if ownProfile.useTasteForMatching, !FixtureData.tasteCards(forPerson: index).isDisjoint(with: ownProfile.tasteCards) {
                 reasons.insert("Shared taste", at: 0)
             }
             return Recommendation(item: person, reasons: reasons)
-        }
+        }.enumerated().sorted {
+            let left = RoleSelection.score(ownProfile.person.roles, matching: $0.element.item.roles)
+            let right = RoleSelection.score(ownProfile.person.roles, matching: $1.element.item.roles)
+            return left == right ? $0.offset < $1.offset : left > right
+        }.map(\.element)
     }
 
     // MARK: ProjectRepository

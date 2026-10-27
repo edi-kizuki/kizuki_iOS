@@ -100,6 +100,58 @@ struct SupabaseBackendTests {
     private let id = UUID(uuidString: "00000000-0000-0000-0000-000000000042")!
     private let key = "sb_publishable_local_test_only"
 
+    @Test func connectionChecksAreReadOnlyAndNeverUseUserToken() async throws {
+        let harness = Harness(); defer { harness.stop() }
+        harness.route.configure(body: "{\"private\":\"must-not-appear\"}", code: 404)
+        let service = try backend(harness)
+        let status = await service.connectionStatus()
+        #expect(status.contains("Profile schema: HTTP 404"))
+        #expect(!status.contains("must-not-appear"))
+        #expect(!status.contains(key))
+        let requests = harness.route.captured()
+        #expect(requests.count == 3)
+        #expect(requests.allSatisfy { $0.httpMethod == "GET" })
+        #expect(requests.allSatisfy { $0.value(forHTTPHeaderField: "Authorization") == nil })
+        #expect(requests.allSatisfy { $0.value(forHTTPHeaderField: "apikey") == key })
+        #expect(requests.last?.url?.query?.contains("limit=0") == true)
+    }
+
+    @Test func connectionFailureDoesNotClaimReachability() async throws {
+        let harness = Harness(); defer { harness.stop() }
+        harness.route.configure(body: "", offline: true)
+        let status = await (try backend(harness, withSession: false)).connectionStatus()
+        #expect(status.contains("Auth settings: unavailable"))
+        #expect(!status.contains("HTTP 200"))
+    }
+
+    @Test func passwordSignInUsesSDKAndRestoresProfileIdentity() async throws {
+        let harness = Harness(); defer { harness.stop() }
+        let user = User(id: id, appMetadata: [:], userMetadata: [:], aud: "authenticated",
+                        createdAt: Date(), emailConfirmedAt: Date(), updatedAt: Date())
+        let session = Session(accessToken: "signin-test-token", tokenType: "bearer", expiresIn: 3600,
+                              expiresAt: Date().timeIntervalSince1970 + 3600,
+                              refreshToken: "signin-refresh-token", user: user)
+        let body = try AuthClient.Configuration.jsonEncoder.encode(session)
+        harness.route.configure(body: String(decoding: body, as: UTF8.self))
+        let service = try backend(harness, withSession: false)
+        try await service.signIn(email: "existing@example.test", password: "synthetic-test-password")
+        #expect(await collect(await service.events(), limit: 1) == [.signedIn(userID: id)])
+        let request = try #require(harness.route.captured().last)
+        #expect(request.url?.path == "/auth/v1/token")
+        #expect(request.url?.query == "grant_type=password")
+        #expect(request.httpMethod == "POST")
+    }
+
+    @Test func rejectedPasswordDoesNotCreateSession() async throws {
+        let harness = Harness(); defer { harness.stop() }
+        harness.route.configure(body: "{\"msg\":\"Invalid credentials\"}", code: 400)
+        let service = try backend(harness, withSession: false)
+        await #expect(throws: (any Error).self) {
+            try await service.signIn(email: "existing@example.test", password: "synthetic-wrong-password")
+        }
+        #expect(await collect(await service.events(), limit: 1) == [.signedOut])
+    }
+
     private func backend(_ harness: Harness, withSession: Bool = true, expired: Bool = false, storage: MemoryAuthStorage = MemoryAuthStorage(), restoreTimeout: Duration = .seconds(10)) throws -> SupabaseBackend {
         let config = try AppConfiguration(environment: .local, url: "http://127.0.0.1:54321", publishableKey: key)
         if withSession {
@@ -134,8 +186,18 @@ struct SupabaseBackendTests {
         #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer test-access-token")
         let query = URLComponents(url: try #require(request.url), resolvingAgainstBaseURL: false)?.queryItems ?? []
         #expect(query.contains(URLQueryItem(name: "id", value: "eq.\(id)")))
-        #expect(query.contains(URLQueryItem(name: "select", value: "id,handle,display_handle,avatar_path")))
+        #expect(query.contains(URLQueryItem(name: "select", value: "id,handle,display_handle,avatar_path,onboarding_completed_at,eligible_at,account_status")))
         #expect(query.contains(URLQueryItem(name: "limit", value: "1")))
+    }
+
+    @Test func ownProfileReadsLifecycleForSessionRouting() async throws {
+        let harness = Harness(); defer { harness.stop() }
+        harness.route.configure(body: "[{\"id\":\"\(id)\",\"eligible_at\":\"2026-10-27T12:00:00Z\",\"onboarding_completed_at\":\"2026-10-27T13:00:00Z\",\"account_status\":\"suspended\"}]")
+        let service = try backend(harness)
+        let profile = try await service.ownProfile(for: id)
+        #expect(profile?.eligibleAt != nil)
+        #expect(profile?.onboardingCompletedAt != nil)
+        #expect(profile?.accountStatus == .suspended)
     }
 
     @Test func missingProfileIsDistinctFromServerFailure() async throws {
@@ -219,7 +281,7 @@ struct SupabaseBackendTests {
         let body = "[{\"id\":\"\(id)\",\"handle\":\"creator\"}]"
         let success = RepositoryContract(version: 1, operation: "profile.own", userID: id,
             request: .init(method: "GET", path: "/rest/v1/profiles", query: ["id": "eq.\(id)", "limit": "1",
-                "select": "id,handle,display_handle,avatar_path"]),
+                "select": "id,handle,display_handle,avatar_path,onboarding_completed_at,eligible_at,account_status"]),
             response: .init(status: 200, body: body),
             expected: .init(profile: Profile(id: id, handle: "creator"), fails: false))
         try await replay(success)

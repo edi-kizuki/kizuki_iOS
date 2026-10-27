@@ -18,13 +18,13 @@ public struct InboxView: View {
         PageScroll(spacing: 12) {
             KizukiSearchField("Search your chats", text: $query)
             if list.isEmpty {
-                ContentUnavailableView("No chats yet", systemImage: "bubble.left.and.bubble.right",
-                                       description: Text("Chats open when a request is accepted. Find your people in Suki."))
+                KizukiEmptyState(title: query.isEmpty ? "No chats yet" : "No chats found",
+                                 message: query.isEmpty ? "Chats open when a request is accepted. Find your people in Suki." : "Try another name from your Crew.")
             }
             ForEach(list) { conversation in
                 if let person = store.person(conversation.personID) {
                     Button { router.push(.conversation(person.id)) } label: {
-                        PersonRow(id: person.id, name: person.name, subtitle: conversation.messages.last?.text ?? "Say hello", trailing: "chevron.right")
+                        PersonRow(id: person.id, name: person.name, subtitle: conversation.messages.last?.text ?? "Say hello", trailing: "chevron.right", portraitAsset: person.portraitAsset)
                     }
                     .buttonStyle(.plain)
                     Divider().overlay(KizukiTheme.grey)
@@ -38,6 +38,7 @@ public struct InboxView: View {
 public struct ChatThreadView: View {
     @Environment(AppStore.self) private var store
     @Environment(AppRouter.self) private var router
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let personID: UUID
     @State private var draft = ""
     @State private var confirmingRemoval = false
@@ -55,8 +56,8 @@ public struct ChatThreadView: View {
                         VStack(spacing: 10) {
                             ForEach(conversation.messages) { message in
                                 Text(message.text).font(KizukiTheme.body(15)).padding(.horizontal, 16).padding(.vertical, 12)
-                                    .foregroundStyle(message.fromMe ? KizukiTheme.charcoal : KizukiTheme.cream)
-                                    .background(message.fromMe ? KizukiTheme.cream : KizukiTheme.grey, in: bubble(message.fromMe))
+                                    .foregroundStyle(KizukiTheme.charcoal)
+                                    .background(KizukiTheme.cream, in: bubble(message.fromMe))
                                     .frame(maxWidth: 290, alignment: message.fromMe ? .trailing : .leading)
                                     .frame(maxWidth: .infinity, alignment: message.fromMe ? .trailing : .leading)
                                     .id(message.id)
@@ -68,9 +69,10 @@ public struct ChatThreadView: View {
                     .onChange(of: conversation.messages.count) { if let last = conversation.messages.last { proxy.scrollTo(last.id, anchor: .bottom) } }
                 }
                 HStack(spacing: 10) {
-                    TextField("Message \(person.firstName)", text: $draft).font(KizukiTheme.body(16))
-                    Button { send() } label: { Image(systemName: "arrow.up.circle.fill").font(.system(size: 30)).foregroundStyle(draft.isEmpty ? KizukiTheme.grey : KizukiTheme.orange) }
-                        .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty).accessibilityLabel("Send")
+                    TextField(dynamicTypeSize.isAccessibilitySize ? "Message" : "Message \(person.firstName)", text: $draft, axis: .vertical).lineLimit(1...5).font(KizukiTheme.body(16))
+                        .accessibilityLabel("Message \(person.firstName)")
+                    Button { send() } label: { Image(systemName: "arrow.up.circle.fill").font(.system(size: 30)).foregroundStyle(draft.isEmpty ? KizukiTheme.grey : KizukiTheme.orange).frame(width: 44, height: 44) }
+                        .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityLabel("Send")
                 }
                 .padding(.horizontal, 16).frame(minHeight: 50)
                 .overlay(RoundedRectangle(cornerRadius: 30).stroke(KizukiTheme.cream, lineWidth: 0.6))
@@ -81,7 +83,7 @@ public struct ChatThreadView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Button { router.push(.profile(person.id)) } label: {
-                        HStack(spacing: 8) { PersonAvatar(person.id, size: 28); Text(person.name).font(KizukiTheme.bodyMedium(16)) }
+                        HStack(spacing: 8) { PersonAvatar(person.id, size: 28, portraitAsset: person.portraitAsset); Text(person.name).font(KizukiTheme.bodyMedium(16)) }
                     }.buttonStyle(.plain).accessibilityLabel("\(person.name), open profile")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -103,8 +105,8 @@ public struct ChatThreadView: View {
 
     private func bubble(_ mine: Bool) -> UnevenRoundedRectangle {
         // Token: three 30 pt corners and one 3 pt corner; the small corner points at the sender.
-        mine ? UnevenRoundedRectangle(topLeadingRadius: 22, bottomLeadingRadius: 22, bottomTrailingRadius: 3, topTrailingRadius: 22)
-             : UnevenRoundedRectangle(topLeadingRadius: 22, bottomLeadingRadius: 3, bottomTrailingRadius: 22, topTrailingRadius: 22)
+        mine ? UnevenRoundedRectangle(topLeadingRadius: 30, bottomLeadingRadius: 30, bottomTrailingRadius: 3, topTrailingRadius: 30)
+             : UnevenRoundedRectangle(topLeadingRadius: 30, bottomLeadingRadius: 3, bottomTrailingRadius: 30, topTrailingRadius: 30)
     }
 
     private func send() {

@@ -86,22 +86,66 @@ public final class AppStore {
 
     /// "Get discovered" checklist (decision 57): the profile fields that make the right people find you.
     public struct DiscoveryStep: Identifiable, Sendable, Hashable {
-        public enum Kind: Sendable, Hashable { case bio, roles, favourites, link, collab }
+        public enum Kind: Sendable, Hashable { case name, bio, city, roles }
         public let kind: Kind
         public let title: String
         public let done: Bool
         public var id: Kind { kind }
     }
     public var discoverySteps: [DiscoveryStep] {
-        [DiscoveryStep(kind: .bio, title: "Write a short bio", done: me.bio.trimmingCharacters(in: .whitespacesAndNewlines).count >= 10),
-         DiscoveryStep(kind: .roles, title: "Pick your roles", done: !me.roles.isEmpty),
-         DiscoveryStep(kind: .favourites, title: "Add favourite films or music", done: !own.favourites.isEmpty),
-         DiscoveryStep(kind: .link, title: "Link your work", done: !me.links.isEmpty),
-         DiscoveryStep(kind: .collab, title: "Post your first collab", done: photos.contains { $0.authorID == me.id })]
+        let bio = me.bio.trimmingCharacters(in: .whitespacesAndNewlines)
+        let roles = me.roles.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        return [DiscoveryStep(kind: .name, title: "Add your display name", done: me.name.rangeOfCharacter(from: .letters) != nil),
+                DiscoveryStep(kind: .bio, title: "Write a short bio (10+ characters)", done: bio.count >= 10 && bio.rangeOfCharacter(from: .letters) != nil),
+                DiscoveryStep(kind: .city, title: "Add your city", done: me.city.rangeOfCharacter(from: .letters) != nil),
+                DiscoveryStep(kind: .roles, title: "Pick your roles", done: RoleSelection.isValid(roles, realm: me.realm))]
+            .filter { own.goal == .collaborate || $0.kind != .roles }
     }
     public var discoveryDoneCount: Int { discoverySteps.filter(\.done).count }
+    public var isProfileComplete: Bool { discoverySteps.allSatisfy(\.done) }
+
+    public func saveProfileBasics(name: String, bio: String, city: String, roles: [String], availability: Availability, compensation: Compensation, goal: Goal? = nil, links: [ProfileLink]? = nil) async -> Bool {
+        var profile = own
+        if let links {
+            guard Set(links.map(\.kind)).count == links.count,
+                  links.allSatisfy({ own.person.links.contains($0) || PortfolioWidgetDescriptor(link: $0).state != .invalid }) else { return false }
+            profile.person.links = links
+        }
+        if let goal { profile.goal = goal }
+        profile.person.collaborationEnabled = profile.goal == .collaborate
+        profile.person.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        profile.person.bio = bio.trimmingCharacters(in: .whitespacesAndNewlines)
+        profile.person.city = city.trimmingCharacters(in: .whitespacesAndNewlines)
+        profile.person.roles = roles.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        guard RoleSelection.isValid(profile.person.roles, realm: profile.person.realm, allowEmpty: true) else { return false }
+        profile.availability = availability
+        profile.person.availability = availability
+        profile.compensation = compensation
+        do {
+            try await deps.own.save(profile)
+            own = profile
+            await refreshDirectory()
+            return true
+        } catch {
+            return false
+        }
+    }
 
     // MARK: Mutations
+
+    public func completeOnboarding(_ draft: OwnProfile) async -> Bool {
+        var profile = draft
+        guard RoleSelection.isValid(profile.person.roles, realm: profile.person.realm, allowEmpty: profile.goal == .explore) else { return false }
+        profile.person.collaborationEnabled = profile.goal == .collaborate
+        profile.person.availability = profile.availability
+        profile.onboardingCompleted = true
+        do {
+            try await deps.own.save(profile)
+            own = profile
+            await refreshDirectory()
+            return true
+        } catch { return false }
+    }
 
     public func updateOwn(_ change: (inout OwnProfile) -> Void) {
         change(&own)

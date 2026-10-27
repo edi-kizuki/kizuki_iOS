@@ -7,6 +7,91 @@ import UIKit
 
 @MainActor
 struct PrototypeStoreTests {
+    @Test func expandedTaxonomyIncludesPainterAndExistingCreativeRoles() {
+        #expect(Realm.visualArts.roleOptions.contains("Painter"))
+        #expect(Realm.visualArts.roleOptions.contains("Graphic designer"))
+        #expect(Realm.visualArts.roleOptions.contains("Ceramicist"))
+        for realm in Realm.allCases {
+            #expect(Set(realm.roleOptions).count == realm.roleOptions.count)
+        }
+        for person in FixtureData.people {
+            #expect(RoleSelection.isValid(person.roles, realm: person.realm))
+        }
+    }
+
+    @Test func inspirationCompletesWithoutInventingRolesOrAvailability() async {
+        let store = await loadedStore()
+        var draft = store.own
+        draft.goal = .explore
+        draft.person.roles = []
+        draft.person.bio = "Collecting creative inspiration."
+        #expect(await store.completeOnboarding(draft))
+        #expect(!store.me.acceptsCollaboration)
+        #expect(store.me.roles.isEmpty)
+        #expect(store.isProfileComplete)
+        #expect(!store.discoverySteps.contains { $0.kind == .roles })
+        #expect(await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: ["Director"], availability: .low, compensation: .open, goal: .collaborate))
+        #expect(store.me.acceptsCollaboration)
+        #expect(store.own.goal == .collaborate)
+    }
+
+    @Test func legacyInspirationProfilesDoNotAdvertiseCollaboration() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("profile.json")
+        var profile = FixtureData.ownProfile
+        profile.goal = .explore
+        profile.person.collaborationEnabled = nil
+        try await FixtureBackend(storageURL: url).save(profile)
+        let restored = await FixtureBackend(storageURL: url).own()
+        #expect(!restored.person.acceptsCollaboration)
+        #expect(restored.person.roles == profile.person.roles)
+    }
+
+    @Test func widgetURLsRejectUntrustedOriginsAndNeverInventBandcampIDs() throws {
+        for url in ["http://youtube.com/watch?v=dQw4w9WgXcQ", "https://youtube.com.evil.test/watch?v=dQw4w9WgXcQ", "https://user@youtube.com/watch?v=dQw4w9WgXcQ", "javascript:alert(1)", "https://youtube.com:8443/watch?v=dQw4w9WgXcQ", "https://youtube.example/demo"] {
+            let widget = PortfolioWidgetDescriptor(link: ProfileLink(kind: .youtube, title: "Video", url: url))
+            #expect(widget.state == .invalid)
+            #expect(widget.externalURL == nil)
+            #expect(widget.embedURL == nil)
+        }
+        let youtube = PortfolioWidgetDescriptor(link: ProfileLink(kind: .youtube, title: "Video", url: "https://youtu.be/dQw4w9WgXcQ"))
+        #expect(youtube.state == .embedAvailable)
+        #expect(youtube.embedURL?.host == "www.youtube-nocookie.com")
+        #expect(youtube.requiresPlaybackConsent)
+        let soundcloud = PortfolioWidgetDescriptor(link: ProfileLink(kind: .soundcloud, title: "Track", url: "https://soundcloud.com/artist/track?tracking=removed"))
+        #expect(soundcloud.embedURL?.host == "w.soundcloud.com")
+        #expect(soundcloud.embedURL?.absoluteString.contains("auto_play=false") == true)
+        let bandcamp = PortfolioWidgetDescriptor(link: ProfileLink(kind: .bandcamp, title: "Album", url: "https://artist.bandcamp.com/album/example"))
+        #expect(bandcamp.state == .metadataRequired)
+        #expect(bandcamp.embedURL == nil)
+        let instagram = PortfolioWidgetDescriptor(link: ProfileLink(kind: .instagram, title: "Work", url: "https://www.instagram.com/artist/"))
+        #expect(instagram.state == .linkOnly)
+        #expect(!instagram.requiresPlaybackConsent)
+    }
+
+    @Test func demoPhotosShipAndNoPhotoProfilesKeepFallbacks() {
+        for name in Artwork.stockAssets + ["StockPortraitOne", "StockPortraitTwo"] {
+            #expect(Artwork.hasStockAsset(named: name))
+        }
+        #expect(FixtureData.people[0].portraitAsset == nil)
+        #expect(FixtureData.people[1].portraitAsset == "StockPortraitTwo")
+    }
+
+    @Test func portfolioEditsValidateAndPersistWithoutChangingMatchingConsent() async {
+        let store = await loadedStore()
+        let before = store.own
+        let valid = ProfileLink(kind: .youtube, title: "Film", url: "https://youtu.be/dQw4w9WgXcQ")
+        let invalid = ProfileLink(kind: .youtube, title: "Film", url: "https://youtube.com.evil.test/video")
+        #expect(!(await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: store.me.roles, availability: .mid, compensation: .open, links: [invalid])))
+        #expect(store.own == before)
+        #expect(!(await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: store.me.roles, availability: .mid, compensation: .open, links: [valid, valid])))
+        #expect(await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: store.me.roles, availability: .mid, compensation: .open, links: [valid]))
+        await store.load()
+        #expect(store.me.links == [valid])
+        #expect(store.own.useTasteForMatching == before.useTasteForMatching)
+        #expect(store.own.useFavouritesForMatching == before.useFavouritesForMatching)
+    }
     private func loadedStore() async -> AppStore {
         let store = AppStore(dependencies: FixtureBackend.dependencies())
         await store.load()
@@ -137,11 +222,108 @@ struct PrototypeStoreTests {
     @Test func getDiscoveredChecklistTracksTheProfile() async {
         let store = await loadedStore()
         let steps = store.discoverySteps
-        #expect(steps.count == 5)
+        #expect(steps.count == 4)
         #expect(steps.first { $0.kind == .bio }?.done == false)
-        #expect(store.discoveryDoneCount == 4)
+        #expect(store.discoveryDoneCount == 3)
         store.updateOwn { $0.person.bio = "Making little films about big feelings." }
-        #expect(store.discoveryDoneCount == 5)
+        #expect(store.discoveryDoneCount == 4)
+        #expect(store.isProfileComplete)
+    }
+
+    @Test func emptyAndWhitespaceProfilesRemainIncomplete() async {
+        let store = AppStore(dependencies: FixtureBackend.dependencies())
+        #expect(store.discoveryDoneCount == 0)
+        #expect(!store.isProfileComplete)
+        await store.load()
+        store.updateOwn {
+            $0.person.name = " \n\t "
+            $0.person.bio = String(repeating: " ", count: 20)
+            $0.person.city = "\n "
+            $0.person.roles = [" "]
+        }
+        #expect(store.discoveryDoneCount == 0)
+        store.updateOwn { $0.person.name = "Mika" }
+        #expect(store.discoveryDoneCount == 1)
+        #expect(!store.isProfileComplete)
+    }
+
+    @Test func completionRejectsInvalidBasicsAndRoles() async {
+        let store = await loadedStore()
+        store.updateOwn {
+            $0.person.name = "---"
+            $0.person.bio = ".........."
+            $0.person.city = "12345"
+            $0.person.roles = ["Unknown role"]
+        }
+        #expect(store.discoveryDoneCount == 0)
+        store.updateOwn { $0.person.roles = ["Director", "Director"] }
+        #expect(store.discoverySteps.first { $0.kind == .roles }?.done == false)
+        store.updateOwn { $0.person.roles = [" Director "]; $0.person.bio = "short" }
+        #expect(store.discoveryDoneCount == 1)
+    }
+
+    @Test func savedBasicsCompleteWithoutEnrichmentAndSurviveReload() async throws {
+        let backend = FixtureBackend()
+        var profile = await backend.own()
+        profile.person.links = []
+        profile.person.favourites = []
+        profile.favourites = []
+        profile.useTasteForMatching = false
+        profile.useFavouritesForMatching = false
+        profile.showFavourites = false
+        try await backend.save(profile)
+        let deps = Dependencies(sessions: backend, profiles: backend, own: backend, directory: backend, projects: backend, requests: backend, conversations: backend, safety: backend)
+        let store = AppStore(dependencies: deps)
+        await store.load()
+        #expect(!store.isProfileComplete)
+        #expect(await store.saveProfileBasics(name: " Mika \n", bio: " Making films with friends. \n", city: " Berlin \n", roles: [" Director "], availability: .high, compensation: .passion))
+        #expect(store.isProfileComplete)
+        #expect(store.me.name == "Mika")
+        #expect(store.me.bio == "Making films with friends.")
+        #expect(store.me.city == "Berlin")
+        #expect(store.me.roles == ["Director"])
+        #expect(store.me.availability == .high)
+        let reopened = AppStore(dependencies: deps)
+        await reopened.load()
+        #expect(reopened.isProfileComplete)
+        #expect(reopened.me.links.isEmpty)
+        #expect(reopened.own.favourites.isEmpty)
+        #expect(!reopened.own.useTasteForMatching)
+        #expect(!reopened.own.useFavouritesForMatching)
+        #expect(!reopened.own.showFavourites)
+        #expect(reopened.own.compensation == .passion)
+        #expect(await reopened.saveProfileBasics(name: "Mika", bio: " ", city: "Berlin", roles: ["Director"], availability: .high, compensation: .passion))
+        #expect(!reopened.isProfileComplete)
+        await reopened.load()
+        #expect(!reopened.isProfileComplete)
+        #expect(await reopened.saveProfileBasics(name: " \n", bio: " \t", city: " ", roles: [], availability: .mid, compensation: .open))
+        #expect(reopened.discoveryDoneCount == 0)
+        #expect(reopened.me.name.isEmpty && reopened.me.bio.isEmpty && reopened.me.city.isEmpty)
+        await reopened.load()
+        #expect(reopened.discoveryDoneCount == 0)
+    }
+
+    @Test func completionDoesNotRequireAPhotoOrPost() async {
+        let store = AppStore(dependencies: FixtureBackend.dependencies())
+        #expect(await store.saveProfileBasics(name: "Mika", bio: "Making films with friends.", city: "Berlin", roles: ["Director"], availability: .mid, compensation: .open))
+        #expect(store.isProfileComplete)
+        #expect(store.photos.isEmpty)
+        #expect(store.me.links.isEmpty)
+        #expect(store.own.favourites.isEmpty)
+    }
+
+    @Test func failedProfileSaveKeepsSavedStateIncomplete() async {
+        let backend = FixtureBackend()
+        let deps = Dependencies(sessions: backend, profiles: backend, own: RejectingProfileRepository(), directory: backend, projects: backend, requests: backend, conversations: backend, safety: backend)
+        let store = AppStore(dependencies: deps)
+        await store.load()
+        let before = store.own
+        #expect(await store.saveProfileBasics(name: "Mika", bio: "Making films with friends.", city: "Berlin", roles: ["Director"], availability: .high, compensation: .passion) == false)
+        #expect(store.own == before)
+        #expect(!store.isProfileComplete)
+        await store.load()
+        #expect(store.own == before)
+        #expect(!store.isProfileComplete)
     }
 
     @Test func kizukiIconAssetsShipInTheBundle() {
@@ -149,13 +331,117 @@ struct PrototypeStoreTests {
         #expect(KizukiIcon.allCases.count == 11)
     }
 
+    @Test func figmaFontsAndIllustrationsShipWithoutFallbacks() {
+        KizukiFonts.register()
+        for weight in KizukiTheme.PoppinsWeight.allCases {
+            let name = "Poppins-\(weight.rawValue)"
+            #expect(UIFont(name: name, size: 15)?.fontName == name, "missing font \(name)")
+        }
+        #expect(UIFont(name: "DMMono-Medium", size: 12)?.fontName == "DMMono-Medium")
+        for illustration in KizukiIllustration.allCases {
+            #expect(illustration.uiImage != nil, "missing illustration \(illustration.rawValue)")
+        }
+    }
+
     @Test func galleryScriptListsEveryScreenId() throws {
         // #filePath = <repo>/ios/Tests/PrototypeStoreTests.swift
         let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let script = try String(contentsOf: repo.appendingPathComponent("scripts/screenshot-gallery.sh"), encoding: .utf8)
-        let expected = ["splash", "login", "eligibility", "onb-handle", "onb-ready", "home", "request-form", "search-post", "suki-sent", "suki-empty", "create-project",
+        let expected = ["splash", "login", "eligibility", "onb-handle", "onb-primer-location", "home", "request-form", "search-post", "suki-sent", "suki-empty", "create-project",
                         "my-project-owner", "profile-other", "chat", "settings-delete"]
         for id in expected { #expect(script.contains(id), "missing \(id)") }
+    }
+
+    @Test func fourRolesShareSelectionRulesAndStableMainOrder() throws {
+        for realm in Realm.allCases {
+            var roles = [realm.roleOptions[0]]
+            for role in realm.roleOptions.dropFirst().prefix(3) { roles = RoleSelection.toggling(role, in: roles, realm: realm) }
+            #expect(roles == Array(realm.roleOptions.prefix(4)))
+            #expect(RoleSelection.toggling(realm.roleOptions[4], in: roles, realm: realm) == roles)
+            #expect(RoleSelection.toggling("Invalid", in: roles, realm: realm) == roles)
+            #expect(!RoleSelection.isValid(roles + [roles[0]], realm: realm))
+            #expect(!RoleSelection.isValid([roles[0], roles[0]], realm: realm))
+            let promoted = RoleSelection.promoting(roles[2], in: roles)
+            #expect(promoted == [roles[2], roles[0], roles[1], roles[3]])
+            #expect(RoleSelection.toggling(promoted[0], in: promoted, realm: realm) == [roles[0], roles[1], roles[3]])
+            #expect(RoleSelection.toggling(roles[0], in: [roles[0]], realm: realm) == [roles[0]])
+            var person = FixtureData.ownProfile.person
+            person.realm = realm
+            person.roles = promoted
+            #expect(try JSONDecoder().decode(Person.self, from: JSONEncoder().encode(person)).roles == promoted)
+            for role in roles { #expect(RoleSelection.score(roles, matching: [role]) > 0) }
+            #expect(RoleSelection.score(roles, matching: [roles[0]]) > RoleSelection.score(roles, matching: Array(roles.dropFirst())))
+        }
+    }
+
+    @Test func localProfileRestoresAllFieldsAndCompletionAcrossNewBackends() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("profile.json")
+        let backend = FixtureBackend(storageURL: url)
+        var profile = await backend.own()
+        profile.person.roles = ["Editor", "Director", "Producer", "Writer"]
+        profile.person.bio = "Making films with friends."
+        profile.onboardingCompleted = true
+        profile.availability = .high
+        profile.person.availability = .high
+        profile.compensation = .passion
+        profile.workMode = .remote
+        profile.showFavourites = false
+        profile.useFavouritesForMatching = false
+        profile.useTasteForMatching = false
+        profile.favourites = ["Aftersun"]
+        try await backend.save(profile)
+        #expect(await FixtureBackend(storageURL: url).own() == profile)
+        #expect(await FixtureBackend().own() == FixtureData.ownProfile)
+        let store = AppStore(dependencies: FixtureBackend.dependencies(storageURL: url))
+        await store.load()
+        #expect(store.isProfileComplete)
+        #expect(store.own.onboardingCompleted == true)
+        let before = store.own
+        #expect(!(await store.saveProfileBasics(name: "Changed", bio: "Changed biography", city: "Berlin", roles: Array(Realm.film.roleOptions.prefix(5)), availability: .low, compensation: .paid)))
+        #expect(store.own == before)
+        var object = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(profile)) as? [String: Any])
+        object.removeValue(forKey: "onboardingCompleted")
+        let legacy = try JSONDecoder().decode(OwnProfile.self, from: JSONSerialization.data(withJSONObject: object))
+        #expect(legacy.onboardingCompleted == nil)
+        #expect(legacy.person.roles == profile.person.roles)
+        try Data("corrupt".utf8).write(to: url)
+        #expect(await FixtureBackend(storageURL: url).own() == FixtureData.ownProfile)
+        try JSONSerialization.data(withJSONObject: ["version": 99, "profile": object]).write(to: url)
+        #expect(await FixtureBackend(storageURL: url).own() == FixtureData.ownProfile)
+    }
+
+    @Test func atomicWriteFailureKeepsProfileAndOnboardingUnchanged() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data("file prevents directory creation".utf8).write(to: url)
+        let store = AppStore(dependencies: FixtureBackend.dependencies(storageURL: url.appendingPathComponent("profile.json")))
+        await store.load()
+        let before = store.own
+        #expect(!(await store.completeOnboarding(before)))
+        #expect(!(await store.saveProfileBasics(name: "Changed", bio: "Changed biography", city: "Berlin", roles: ["Editor"], availability: .low, compensation: .paid)))
+        #expect(store.own == before)
+        await store.load()
+        #expect(store.own == before)
+    }
+
+    @Test func roleRecommendationsRankMainAboveSecondaryAndKeepFilters() async throws {
+        let backend = FixtureBackend()
+        var profile = await backend.own()
+        profile.person.roles = ["Director", "Editor", "Producer", "Writer"]
+        try await backend.save(profile)
+        for role in profile.person.roles {
+            await backend.save(Project(id: UUID(), ownerID: FixtureData.personID(1), title: role, realm: .film, rolesNeeded: [role], summary: "Role ranking", status: .published))
+        }
+        let projects = await backend.recommendedProjects()
+        let scores = projects.map { RoleSelection.score(profile.person.roles, matching: $0.item.rolesNeeded) }
+        #expect(scores == scores.sorted(by: >))
+        #expect(projects.firstIndex { $0.item.title == "Director" }! < projects.firstIndex { $0.item.title == "Editor" }!)
+        #expect(projects.allSatisfy { $0.item.status == .published && $0.item.ownerID != profile.person.id && !$0.item.memberIDs.contains(profile.person.id) })
+        let people = await backend.recommendedPeople()
+        let peopleScores = people.map { RoleSelection.score(profile.person.roles, matching: $0.item.roles) }
+        #expect(peopleScores == peopleScores.sorted(by: >))
     }
 
     @Test func everyFixtureProfileHasUniqueLinkIDs() {
@@ -171,12 +457,18 @@ struct PrototypeStoreTests {
         let projectTaste: (Recommendation<Project>) -> Bool = { $0.reasons.contains("Shared taste") }
         var own = await backend.own()
         own.useTasteForMatching = true
-        await backend.save(own)
+        try await backend.save(own)
         #expect(await backend.recommendedPeople().contains(where: sharedTaste))
         #expect(await backend.recommendedProjects().contains(where: projectTaste))
         own.useTasteForMatching = false
-        await backend.save(own)
+        try await backend.save(own)
         #expect(!(await backend.recommendedPeople().contains(where: sharedTaste)))
         #expect(!(await backend.recommendedProjects().contains(where: projectTaste)))
     }
+}
+
+private struct RejectingProfileRepository: OwnProfileRepository {
+    enum SaveError: Error { case rejected }
+    func own() async throws -> OwnProfile { FixtureData.ownProfile }
+    func save(_ profile: OwnProfile) async throws { throw SaveError.rejected }
 }

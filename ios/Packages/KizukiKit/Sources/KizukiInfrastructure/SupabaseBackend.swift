@@ -6,8 +6,13 @@ import Supabase
 public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendable {
     private let client: SupabaseClient
     private let restoreTimeout: Duration
+    private let configuration: AppConfiguration
+    private let transport: URLSession
+    public var environment: AppEnvironment { configuration.environment }
 
     public init(configuration: AppConfiguration) {
+        self.configuration = configuration
+        transport = .shared
         restoreTimeout = .seconds(10)
         self.client = Self.makeClient(configuration: configuration,
                                       storage: KeychainLocalStorage(service: "club.kizuki.ios.auth"),
@@ -16,6 +21,8 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
 
     /// Explicit injection for isolated SDK transport tests; never changes the live initializer.
     public init(configuration: AppConfiguration, storage: any AuthLocalStorage, session: URLSession, restoreTimeout: Duration = .seconds(10)) {
+        self.configuration = configuration
+        transport = session
         self.restoreTimeout = restoreTimeout
         self.client = Self.makeClient(configuration: configuration, storage: storage, session: session)
     }
@@ -44,6 +51,37 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
     public func stopBackgroundRefresh() {
         let auth = client.auth
         Task { await auth.stopAutoRefresh() }
+    }
+
+    public func signIn(email: String, password: String) async throws {
+        _ = try await client.auth.signIn(email: email, password: password)
+    }
+
+    public func connectionStatus() async -> String {
+        let endpoints = [
+            ("Auth settings", "/auth/v1/settings"),
+            ("Database API", "/rest/v1/"),
+            ("Profile schema", "/rest/v1/profiles?select=id,handle,display_handle,avatar_path,onboarding_completed_at,eligible_at,account_status&limit=0")
+        ]
+        var results: [String] = []
+        for (name, path) in endpoints {
+            guard let url = URL(string: path, relativeTo: configuration.supabaseURL) else { continue }
+            var request = URLRequest(url: url, timeoutInterval: 15)
+            request.setValue(configuration.publishableKey, forHTTPHeaderField: "apikey")
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            do {
+                let (_, response) = try await transport.data(for: request)
+                guard let response = response as? HTTPURLResponse else {
+                    results.append("\(name): unavailable")
+                    continue
+                }
+                results.append("\(name): HTTP \(response.statusCode)")
+            } catch {
+                results.append("\(name): unavailable")
+            }
+        }
+        results.append("Public endpoint checks only. User access and schema readiness require an authenticated profile read.")
+        return results.joined(separator: "\n")
     }
 
     /// B04 calls AppSession.beginPasswordRecovery() before invoking this method.
@@ -122,7 +160,7 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
         guard session.user.id == userID else { throw BackendError.identityMismatch }
         // B01 prefix only. B02 adds lifecycle/legal acceptance columns with its migration.
         let rows: [Profile] = try await client.from("profiles")
-            .select("id,handle,display_handle,avatar_path")
+            .select("id,handle,display_handle,avatar_path,onboarding_completed_at,eligible_at,account_status")
             .eq("id", value: userID.uuidString)
             .limit(1)
             .execute().value

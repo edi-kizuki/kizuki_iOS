@@ -57,10 +57,13 @@ public enum FixtureData {
 
     public static let people: [Person] = names.enumerated().map { i, name in
         // The signed-in user (index 0) starts without a bio, so the "Get discovered" card has something to ask for.
-        Person(id: personID(i), name: name, handle: name.lowercased().replacingOccurrences(of: " ", with: "."),
+        var person = Person(id: personID(i), name: name, handle: name.lowercased().replacingOccurrences(of: " ", with: "."),
                realm: realms[i], roles: roles[i], city: i == 17 ? "Potsdam, DE" : "Berlin, DE", bio: i == 0 ? "" : bios[i % bios.count],
                links: links(i), favourites: i % 2 == 0 ? [favouriteFilms[i % 4], favouriteMusic[(i + 1) % 4]] : [],
                availability: Availability.allCases[(i + 1) % 3])
+        if i == 1 { person.portraitAsset = "StockPortraitTwo" }
+        if i == 2 { person.portraitAsset = "StockPortraitOne" }
+        return person
     }
 
     static let projectTitles = ["Blue hour, Berlin", "A room for sound", "Soft edges", "Letters from Wedding", "Night bus diaries",

@@ -2,6 +2,16 @@ import KizukiOnboardingFeature
 import Testing
 
 struct OnboardingCopyTests {
+    @Test func inspirationSkipsCollaborationQuestionsAndNoReadyStep() {
+        let explore = OnboardingStep.steps(for: .explore)
+        #expect(explore.count == 8)
+        #expect(!explore.contains(.roles))
+        #expect(!explore.contains(.availability))
+        #expect(!explore.contains(.compensation))
+        #expect(OnboardingStep.steps(for: .collaborate).count == 11)
+        #expect(OnboardingStep.allCases.last == .location)
+        #expect(EntryScreen(id: "onb-ready") == nil)
+    }
     /// Decision 51: availability is public on every profile, so onboarding must not call it private.
     @Test func availabilityCopyStatesItIsPublic() {
         let copy = OnboardingCopy.availability.lowercased()

@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 ALL_SCREENS=(
   splash login eligibility
   onb-handle onb-goal onb-realm onb-roles onb-taste onb-favourites onb-compensation onb-availability onb-city
-  onb-primer-notifications onb-primer-location onb-ready
+  onb-primer-notifications onb-primer-location
   home project-detail request-form
   search search-post
   suki-crew suki-empty suki-requests suki-sent request-detail suki-create create-project post-collab

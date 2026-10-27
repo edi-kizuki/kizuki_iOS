@@ -17,3 +17,27 @@ public enum KizukiIcon: String, CaseIterable, Sendable {
     /// Used by tests to prove each asset ships in the bundle.
     public var uiImage: UIImage? { UIImage(named: rawValue, in: .module, with: nil) }
 }
+
+public enum KizukiIllustration: String, CaseIterable {
+    case dancingTrio = "DancingTrio", swirl = "SwirlPattern"
+    case onboardingEyes = "OnboardingEyes", onboardingEye = "OnboardingEye", onboardingSuki = "OnboardingSuki"
+    case onboardingCrest = "OnboardingCrest", onboardingWelcome = "OnboardingWelcome", onboardingAxolotl = "OnboardingAxolotl"
+    case onboardingLoginPattern = "OnboardingLoginPattern", onboardingLoginPaper = "OnboardingLoginPaper", onboardingTrio = "OnboardingTrio"
+    case onboardingPattern = "OnboardingPattern", onboardingCardEdge = "OnboardingCardEdge", onboardingTipEdge = "OnboardingTipEdge"
+    public var image: Image { Image(rawValue, bundle: .module).renderingMode(.template) }
+    public var originalImage: Image { Image(rawValue, bundle: .module).renderingMode(.original) }
+    public var uiImage: UIImage? { UIImage(named: rawValue, in: .module, with: nil) }
+}
+
+public struct KizukiPatternBackground: View {
+    let tint: Color
+    public init(tint: Color = KizukiTheme.darkGrey) { self.tint = tint }
+    public var body: some View {
+        GeometryReader { geometry in
+            KizukiIllustration.swirl.image.resizable().scaledToFill()
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped().foregroundStyle(tint)
+        }
+        .allowsHitTesting(false).accessibilityHidden(true)
+    }
+}

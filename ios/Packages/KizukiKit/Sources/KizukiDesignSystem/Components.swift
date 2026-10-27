@@ -44,7 +44,7 @@ public struct KizukiChip: View {
     var selected: Bool
     public init(_ text: String, selected: Bool = false) { self.text = text; self.selected = selected }
     public var body: some View {
-        Text(text).font(KizukiTheme.mono(12)).lineLimit(1)
+        Text(text).font(KizukiTheme.bodyMedium(12)).fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 12).padding(.vertical, 8)
             .foregroundStyle(selected ? KizukiTheme.cream : KizukiTheme.babyBlue)
             .background(selected ? KizukiTheme.blue : KizukiTheme.charcoal, in: Capsule())
@@ -57,9 +57,9 @@ public struct ReasonChips: View {
     let reasons: [String]
     public init(_ reasons: [String]) { self.reasons = reasons }
     public var body: some View {
-        HStack(spacing: 6) {
+        FlowLayout(spacing: 6) {
             ForEach(reasons.prefix(2), id: \.self) { reason in
-                Text(reason).font(KizukiTheme.mono(10)).lineLimit(1)
+                Text(reason).font(KizukiTheme.mono(11)).fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 8).padding(.vertical, 4)
                     .foregroundStyle(KizukiTheme.charcoal).background(KizukiTheme.babyBlue, in: Capsule())
             }
@@ -99,44 +99,47 @@ public struct RoughShape: Shape {
     }
 }
 
-/// Gradient + SF Symbol placeholder for photos (no external images in the prototype).
+/// Bundled, credited stock photography for demo project and collab cards.
 public struct Artwork: View {
     var seed: Int
     var height: CGFloat
     var title: String
     public init(seed: Int = 0, height: CGFloat = 220, title: String = "") { self.seed = seed; self.height = height; self.title = title }
-    private var colors: [Color] {
-        let t = KizukiTheme.self
-        return [[t.ink, t.orange], [t.blue, t.charcoal], [t.babyBlue, t.blue], [t.ink, t.salmon], [t.grey, t.yellow]][abs(seed) % 5]
-    }
-    private var symbol: String { ["waveform", "camera.aperture", "film.stack", "paintbrush.pointed", "pianokeys", "sparkles"][abs(seed) % 6] }
+    public static let stockAssets = ["StockFilm", "StockStudio", "StockPainting", "StockMicrophone", "StockBrushes", "StockWorkspace"]
+    public static func hasStockAsset(named name: String) -> Bool { UIImage(named: name, in: .module, compatibleWith: nil) != nil }
     public var body: some View {
-        // The overlay is sized by the clear base, so decorative circles never widen the layout.
         Color.clear.frame(height: height).frame(maxWidth: .infinity)
             .overlay {
-                ZStack(alignment: .bottomLeading) {
-                    LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
-                    Circle().stroke(KizukiTheme.cream.opacity(0.22), lineWidth: 1).frame(width: 200, height: 200).offset(x: 120, y: -50)
-                    Circle().stroke(KizukiTheme.cream.opacity(0.15), lineWidth: 18).frame(width: 160, height: 160).offset(x: -30, y: 60)
-                    Image(systemName: symbol).font(.system(size: min(height * 0.28, 70), weight: .ultraLight))
-                        .foregroundStyle(KizukiTheme.cream.opacity(0.75)).frame(maxWidth: .infinity, maxHeight: .infinity)
-                    if !title.isEmpty {
-                        Text(title.uppercased()).font(KizukiTheme.title(30)).lineLimit(2).foregroundStyle(KizukiTheme.cream).padding(16)
-                    }
+                Image(Self.stockAssets[Int(seed.magnitude % UInt(Self.stockAssets.count))], bundle: .module)
+                    .resizable().scaledToFill()
+            }
+            .overlay(alignment: .bottomLeading) {
+                if !title.isEmpty {
+                    Text(title.uppercased()).font(KizukiTheme.title(30)).lineLimit(2)
+                        .foregroundStyle(KizukiTheme.cream).padding(16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.black.opacity(0.55))
                 }
             }
             .clipped()
-            .accessibilityElement().accessibilityLabel("Placeholder image")
+            .accessibilityElement().accessibilityLabel("Demo stock photograph")
     }
 }
 
-/// Deterministic Blobatar from the person's id, on a soft disc.
+/// Explicit portrait asset with a deterministic Blobatar fallback.
 public struct PersonAvatar: View {
     let id: UUID
     var size: CGFloat
-    public init(_ id: UUID, size: CGFloat = 56) { self.id = id; self.size = size }
+    var portraitAsset: String?
+    public init(_ id: UUID, size: CGFloat = 56, portraitAsset: String? = nil) { self.id = id; self.size = size; self.portraitAsset = portraitAsset }
     public var body: some View {
-        ProfileAvatar(profileID: id).frame(width: size, height: size)
+        Group {
+            if let portraitAsset, UIImage(named: portraitAsset, in: .module, compatibleWith: nil) != nil {
+                Image(portraitAsset, bundle: .module).resizable().scaledToFill()
+            } else {
+                ProfileAvatar(profileID: id)
+            }
+        }.frame(width: size, height: size)
             .background(KizukiTheme.babyBlue.opacity(0.18), in: Circle()).clipShape(Circle())
     }
 }
@@ -148,8 +151,9 @@ public struct KizukiField: View {
     public init(_ title: String, text: Binding<String>, prompt: String = "") { self.title = title; self._text = text; self.prompt = prompt }
     public var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
-            TextField("", text: $text, prompt: Text(prompt.isEmpty ? title : prompt).foregroundStyle(KizukiTheme.cream.opacity(0.4))).font(KizukiTheme.body(16)).padding(.vertical, 10)
+            Text(title).font(KizukiTheme.poppins(12, relativeTo: .caption)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            TextField("", text: $text, prompt: Text(prompt.isEmpty ? title : prompt).foregroundStyle(KizukiTheme.cream.opacity(0.6))).font(KizukiTheme.poppins(15)).padding(.vertical, 10)
+                .accessibilityLabel(title)
                 .overlay(alignment: .bottom) { Rectangle().fill(KizukiTheme.cream.opacity(0.3)).frame(height: 0.6) }
         }
     }
@@ -161,9 +165,10 @@ public struct KizukiTextArea: View {
     public init(_ title: String, text: Binding<String>) { self.title = title; self._text = text }
     public var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
-            TextField("", text: $text, prompt: Text(title).foregroundStyle(KizukiTheme.cream.opacity(0.4)), axis: .vertical).lineLimit(3...6).font(KizukiTheme.body(15)).padding(12)
-                .background(KizukiTheme.grey.opacity(0.5)).overlay(Rectangle().stroke(KizukiTheme.babyBlueIcons.opacity(0.4), lineWidth: 0.6))
+            Text(title).font(KizukiTheme.poppins(12, relativeTo: .caption)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            TextField("", text: $text, prompt: Text(title).foregroundStyle(KizukiTheme.cream.opacity(0.6)), axis: .vertical).lineLimit(3...6).font(KizukiTheme.poppins(15)).padding(12)
+                .accessibilityLabel(title)
+                .background(KizukiTheme.surface).overlay(Rectangle().stroke(KizukiTheme.border, lineWidth: 0.6))
         }
     }
 }
@@ -199,7 +204,7 @@ public struct SectionTitle: View {
     let text: String
     public init(_ text: String) { self.text = text }
     public var body: some View {
-        Text(text).font(KizukiTheme.title(25)).foregroundStyle(KizukiTheme.cream).frame(maxWidth: .infinity, alignment: .leading)
+        Text(text).font(KizukiTheme.title(24)).foregroundStyle(KizukiTheme.cream).frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityAddTraits(.isHeader)
     }
 }
@@ -207,12 +212,12 @@ public struct SectionTitle: View {
 public struct PageScroll<Content: View>: View {
     let spacing: CGFloat
     @ViewBuilder var content: Content
-    public init(spacing: CGFloat = 24, @ViewBuilder content: () -> Content) { self.spacing = spacing; self.content = content() }
+    public init(spacing: CGFloat = KizukiTheme.sectionGap, @ViewBuilder content: () -> Content) { self.spacing = spacing; self.content = content() }
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: spacing) { content }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: spacing) { content }.padding(KizukiTheme.pageInset).frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(KizukiTheme.charcoal).foregroundStyle(KizukiTheme.cream).scrollDismissesKeyboard(.interactively)
+        .font(KizukiTheme.body()).background(KizukiTheme.charcoal).foregroundStyle(KizukiTheme.cream).scrollDismissesKeyboard(.interactively)
     }
 }
 
@@ -241,7 +246,7 @@ public struct KizukiTopBar: View {
             }
             .offset(y: 7)
         }
-        .padding(.leading, 20).padding(.trailing, 13).frame(height: 62)
+        .padding(.leading, KizukiTheme.pageInset).padding(.trailing, 13).frame(minHeight: 62)
         .background(KizukiTheme.charcoal, in: UnevenRoundedRectangle(bottomLeadingRadius: 20, bottomTrailingRadius: 20))
         .foregroundStyle(KizukiTheme.cream)
     }
@@ -250,12 +255,13 @@ public struct KizukiTopBar: View {
 public struct PersonRow: View {
     let id: UUID, name: String, subtitle: String
     var trailing: String
-    public init(id: UUID, name: String, subtitle: String, trailing: String = "chevron.right") {
-        self.id = id; self.name = name; self.subtitle = subtitle; self.trailing = trailing
+    var portraitAsset: String?
+    public init(id: UUID, name: String, subtitle: String, trailing: String = "chevron.right", portraitAsset: String? = nil) {
+        self.id = id; self.name = name; self.subtitle = subtitle; self.trailing = trailing; self.portraitAsset = portraitAsset
     }
     public var body: some View {
         HStack(spacing: 14) {
-            PersonAvatar(id, size: 48)
+            PersonAvatar(id, size: 48, portraitAsset: portraitAsset)
             VStack(alignment: .leading, spacing: 4) {
                 Text(name).font(KizukiTheme.bodyMedium(17))
                 Text(subtitle).font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons).lineLimit(2)
@@ -268,9 +274,15 @@ public struct PersonRow: View {
 }
 
 public extension View {
+    func kizukiPanel() -> some View {
+        padding(KizukiTheme.cardInset)
+            .background(KizukiTheme.surface, in: RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
+            .overlay(RoundedRectangle(cornerRadius: KizukiTheme.cardRadius).stroke(KizukiTheme.border, lineWidth: 0.6))
+    }
+
     /// Card surface used on baby-blue canvases (tokens: feed section card radius 20).
     func kizukiCard(_ fill: Color = KizukiTheme.charcoal) -> some View {
-        padding(20).background(fill, in: RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
+        padding(KizukiTheme.pageInset).background(fill, in: RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
     }
 }
 
@@ -283,13 +295,13 @@ public struct FlowLayout: Layout {
     }
     public func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         for (i, point) in arrange(width: bounds.width, subviews).points.enumerated() {
-            subviews[i].place(at: CGPoint(x: bounds.minX + point.x, y: bounds.minY + point.y), proposal: .unspecified)
+            subviews[i].place(at: CGPoint(x: bounds.minX + point.x, y: bounds.minY + point.y), proposal: ProposedViewSize(width: min(bounds.width, subviews[i].sizeThatFits(.unspecified).width), height: nil))
         }
     }
     private func arrange(width: CGFloat, _ subviews: Subviews) -> (points: [CGPoint], size: CGSize) {
         var points: [CGPoint] = [], x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, maxX: CGFloat = 0
         for view in subviews {
-            let size = view.sizeThatFits(.unspecified)
+            let size = view.sizeThatFits(ProposedViewSize(width: min(width, view.sizeThatFits(.unspecified).width), height: nil))
             if x > 0, x + size.width > width { x = 0; y += rowHeight + spacing; rowHeight = 0 }
             points.append(CGPoint(x: x, y: y))
             x += size.width + spacing; rowHeight = max(rowHeight, size.height); maxX = max(maxX, x - spacing)
@@ -311,8 +323,25 @@ public struct KizukiSearchField: View {
                 Button { text = "" } label: { Image(systemName: "xmark.circle.fill").frame(width: 32, height: 32) }.accessibilityLabel("Clear search")
             }
         }
-        .font(KizukiTheme.body(14)).padding(.horizontal, 14).frame(height: 40).foregroundStyle(KizukiTheme.charcoal)
+        .font(KizukiTheme.body(14)).padding(.horizontal, 14).padding(.vertical, 8).frame(minHeight: 44).foregroundStyle(KizukiTheme.charcoal)
         .background(KizukiTheme.cream, in: RoundedRectangle(cornerRadius: 20))
+    }
+}
+
+public struct KizukiEmptyState: View {
+    let title: String
+    let message: String
+    public init(title: String, message: String) { self.title = title; self.message = message }
+    public var body: some View {
+        VStack(spacing: 12) {
+            KizukiIcon.sukiMascot.image.resizable().scaledToFit().frame(height: 96)
+                .foregroundStyle(KizukiTheme.orange).accessibilityHidden(true)
+            Text(title).font(KizukiTheme.title(26))
+            Text(message).font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
+        }
+        .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity).padding(.vertical, KizukiTheme.sectionGap).kizukiPanel()
+        .accessibilityElement(children: .combine)
     }
 }
 

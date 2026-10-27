@@ -26,11 +26,12 @@ public struct SearchView: View {
         VStack(spacing: 12) {
             KizukiTopBar(title: "Search", onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
             KizukiSearchField("Search photos & videos", text: $query).padding(.horizontal, 16)
+            Text("Demo gallery · stock photography").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(filters, id: \.self) { item in
                         Button { filter = item } label: {
-                            Text(item).font(KizukiTheme.bodyMedium(12)).padding(.horizontal, 14).frame(minHeight: 36)
+                            Text(item).font(KizukiTheme.monoMedium(12)).padding(.horizontal, 14).frame(minHeight: 44)
                                 .background(filter == item ? KizukiTheme.salmon : KizukiTheme.grey, in: Capsule())
                                 .foregroundStyle(filter == item ? KizukiTheme.charcoal : KizukiTheme.cream)
                         }
@@ -41,8 +42,8 @@ public struct SearchView: View {
             }
             ScrollView {
                 if results.isEmpty {
-                    ContentUnavailableView("Nothing found", systemImage: "magnifyingglass", description: Text("Try another word, role or creative idea."))
-                        .padding(.top, 40)
+                    KizukiEmptyState(title: "Nothing found", message: "Try another caption, tag or creative idea.")
+                        .padding(KizukiTheme.pageInset)
                 } else {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 3), spacing: 1) {
                         ForEach(results) { photo in
@@ -78,7 +79,7 @@ public struct CollabPhotoView: View {
                 Artwork(seed: photo.artSeed, height: 420).videoBadge(photo.durationLabel, large: true)
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
-                        Button { router.push(.profile(author.id)) } label: { PersonRow(id: author.id, name: author.name, subtitle: "@\(author.handle) · 3 hours ago") }.buttonStyle(.plain)
+                        Button { router.push(.profile(author.id)) } label: { PersonRow(id: author.id, name: author.name, subtitle: "@\(author.handle) · 3 hours ago", portraitAsset: author.portraitAsset) }.buttonStyle(.plain)
                     }
                     Text(photo.caption).font(KizukiTheme.body(17))
                     HStack { ForEach(photo.tags, id: \.self) { KizukiChip($0) } }

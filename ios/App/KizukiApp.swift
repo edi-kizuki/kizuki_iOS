@@ -23,7 +23,8 @@ struct KizukiApp: App {
         let arguments = ProcessInfo.processInfo.arguments
         launchScreen = arguments.firstIndex(of: "-screen").flatMap { arguments.indices.contains($0 + 1) ? arguments[$0 + 1] : nil }
         if !arguments.contains("--ui-testing"), arguments.contains("-fixtures") || !arguments.contains("-live") {
-            _prototypeStore = State(initialValue: AppStore(dependencies: .fixture))
+            let ephemeral = arguments.contains("-fixtures") || launchScreen != nil || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            _prototypeStore = State(initialValue: AppStore(dependencies: FixtureBackend.dependencies(storageURL: ephemeral ? nil : FixtureBackend.runtimeStorageURL)))
             _session = State(initialValue: nil)
             configurationError = nil
             liveDependencies = nil

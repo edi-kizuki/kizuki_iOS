@@ -20,6 +20,10 @@ public enum KizukiTheme {
     public static let surface = darkGrey
     public static let accent = orange
     public static let spacing: CGFloat = 24
+    public static let pageInset: CGFloat = 20
+    public static let cardInset: CGFloat = 16
+    public static let sectionGap: CGFloat = 24
+    public static let border = babyBlueIcons.opacity(0.35)
 
     // Radii from the tokens doc.
     public static let cardRadius: CGFloat = 20
@@ -31,6 +35,15 @@ public enum KizukiTheme {
     public static func bodyMedium(_ size: CGFloat = 16) -> Font { KizukiFonts.font("DMSans-9ptRegular_Medium", size, .body) }
     public static func bodyBold(_ size: CGFloat = 16) -> Font { KizukiFonts.font("DMSans-9ptRegular_Bold", size, .body) }
     public static func mono(_ size: CGFloat = 12) -> Font { KizukiFonts.font("DMMono-Regular", size, .caption) }
+    public static func monoMedium(_ size: CGFloat = 12) -> Font { KizukiFonts.font("DMMono-Medium", size, .caption) }
+
+    public enum PoppinsWeight: String, CaseIterable {
+        case light = "Light", regular = "Regular", medium = "Medium", semibold = "SemiBold", bold = "Bold", extraBold = "ExtraBold"
+    }
+
+    public static func poppins(_ size: CGFloat = 15, weight: PoppinsWeight = .regular, relativeTo style: Font.TextStyle = .body) -> Font {
+        KizukiFonts.font("Poppins-\(weight.rawValue)", size, style)
+    }
 }
 
 public extension Color {
@@ -41,7 +54,8 @@ public extension Color {
 
 /// Fonts ship inside the package bundle (OFL licences alongside), so they are registered at runtime.
 public enum KizukiFonts {
-    private static let files = ["LondrinaSolid-Regular", "LondrinaSolid-Black", "DMSans", "DMMono-Regular"]
+    private static let files = ["LondrinaSolid-Regular", "LondrinaSolid-Black", "DMSans", "DMMono-Regular", "DMMono-Medium"]
+        + KizukiTheme.PoppinsWeight.allCases.map { "Poppins-\($0.rawValue)" }
     private static let registered: Bool = {
         for file in files {
             if let url = Bundle.module.url(forResource: file, withExtension: "ttf") {

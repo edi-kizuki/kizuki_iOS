@@ -76,7 +76,7 @@ public struct SukiView: View {
             if let person = store.person(request.personID) {
                 VStack(alignment: .leading, spacing: 12) {
                     Button { router.push(.request(request.id)) } label: {
-                        PersonRow(id: person.id, name: person.name, subtitle: "\(request.role) · \(request.timeCommitment)")
+                        PersonRow(id: person.id, name: person.name, subtitle: "\(request.role) · \(request.timeCommitment)", portraitAsset: person.portraitAsset)
                     }.buttonStyle(.plain)
                     Text(request.kind.label.uppercased()).font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.orange)
                     if let project = request.projectID.flatMap(store.project) { Text(project.title).font(KizukiTheme.title(22)) }
@@ -98,7 +98,7 @@ public struct SukiView: View {
                         }
                     }
                 }
-                .padding(16).background(KizukiTheme.grey.opacity(0.5), in: RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
+                .kizukiPanel()
             }
         }
     }
@@ -135,13 +135,12 @@ public struct SukiView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(title + " +").font(KizukiTheme.title(26))
-                    Text(subtitle).font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
+                    Text(subtitle).font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
                 }
                 Spacer()
                 Image(systemName: symbol).font(.system(size: 26)).foregroundStyle(KizukiTheme.blue)
             }
-            .padding(24).frame(maxWidth: .infinity, minHeight: 110).background(KizukiTheme.grey.opacity(0.5)).clipShape(RoughShape())
-            .overlay(RoughShape().stroke(KizukiTheme.babyBlueIcons.opacity(0.5), lineWidth: 1))
+            .frame(maxWidth: .infinity, minHeight: 78).kizukiPanel()
         }
         .buttonStyle(.plain)
     }
@@ -159,7 +158,7 @@ struct CrewCard: View {
             Button(action: onMessage) {
                 // Unlike PersonRow, Crew identity has no trailing glyph or subtitle line limit.
                 HStack(spacing: 14) {
-                    PersonAvatar(person.id, size: 48)
+                    PersonAvatar(person.id, size: 48, portraitAsset: person.portraitAsset)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(person.name).font(KizukiTheme.bodyMedium(17))
                         Text("\(person.primaryRole) · Say hello")
@@ -197,8 +196,7 @@ struct CrewCard: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(16)
-        .background(KizukiTheme.grey.opacity(0.5), in: RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
+        .kizukiPanel()
     }
 }
 
@@ -216,13 +214,7 @@ struct SukiEmptyState: View {
     let title: String
     let message: String
     var body: some View {
-        VStack(spacing: 12) {
-            SukiMascotView(height: 120)
-            Text(title).font(KizukiTheme.title(26)).multilineTextAlignment(.center)
-            Text(message).font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons).multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity).padding(.vertical, 28)
-        .accessibilityElement(children: .combine)
+        KizukiEmptyState(title: title, message: message)
     }
 }
 
@@ -241,7 +233,7 @@ public struct RequestDetailView: View {
         if let request = store.request(requestID), let person = store.person(request.personID) {
             PageScroll(spacing: 18) {
                 HStack(spacing: 14) {
-                    PersonAvatar(person.id, size: 64)
+                    PersonAvatar(person.id, size: 64, portraitAsset: person.portraitAsset)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(person.name).font(KizukiTheme.title(28))
                         Text("@\(person.handle) · \(person.city)").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)

@@ -16,9 +16,12 @@ public enum EntryScreen: Hashable, Sendable {
 }
 
 public enum OnboardingStep: Int, CaseIterable, Sendable {
-    case handle, goal, realm, roles, taste, favourites, compensation, availability, city, notifications, location, ready
+    case handle, goal, realm, roles, taste, favourites, compensation, availability, city, notifications, location
     public var id: String {
-        ["handle", "goal", "realm", "roles", "taste", "favourites", "compensation", "availability", "city", "primer-notifications", "primer-location", "ready"][rawValue]
+        ["handle", "goal", "realm", "roles", "taste", "favourites", "compensation", "availability", "city", "primer-notifications", "primer-location"][rawValue]
+    }
+    public static func steps(for goal: Goal) -> [Self] {
+        allCases.filter { goal == .collaborate || ![Self.roles, .compensation, .availability].contains($0) }
     }
     var isPrimer: Bool { self == .notifications || self == .location }
 }
@@ -41,6 +44,8 @@ public extension EntryScreen {
 
 /// Splash → sign-in (stubs) → 18+ and Terms → onboarding. No network calls anywhere.
 public struct EntryFlow: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var screen: EntryScreen
     @State private var draft: OwnProfile
     @State private var emailEntry = false
@@ -49,10 +54,12 @@ public struct EntryFlow: View {
     @State private var ageAndTerms = false
     @State private var showTerms = false
     @State private var search = ""
-    let onFinish: (OwnProfile) -> Void
+    @State private var saving = false
+    @State private var saveFailed = false
+    let onFinish: (OwnProfile) async -> Bool
     let autoAdvanceSplash: Bool
 
-    public init(start: EntryScreen = .splash, autoAdvanceSplash: Bool = true, initial: OwnProfile, onFinish: @escaping (OwnProfile) -> Void) {
+    public init(start: EntryScreen = .splash, autoAdvanceSplash: Bool = true, initial: OwnProfile, onFinish: @escaping (OwnProfile) async -> Bool) {
         _screen = State(initialValue: start)
         _draft = State(initialValue: initial)
         self.onFinish = onFinish
@@ -61,7 +68,8 @@ public struct EntryFlow: View {
 
     private let titles = ["What should we call you?", "What are you looking to do?", "Find your creative realm", "What’s your role?",
                           "What catches your eye?", "Your favourites, your world", "What kind of work?", "How much time do you have?",
-                          "Where do you create?", "Stay in the loop", "Find your nearby people", "You’re in good company"]
+                          "Where do you create?", "Stay in the loop", "Find your nearby people"]
+    private var steps: [OnboardingStep] { OnboardingStep.steps(for: draft.goal) }
 
     public var body: some View {
         Group {
@@ -72,10 +80,20 @@ public struct EntryFlow: View {
             case let .step(step): stepScreen(step)
             }
         }
-        .background(screen == .splash ? KizukiTheme.orange : screen == .login ? KizukiTheme.ink : KizukiTheme.charcoal)
+        .background {
+            if screen == .splash {
+                Color(hex: 0xFF6139).overlay { onboardingPattern(tint: Color(hex: 0xFF4B1E)) }.ignoresSafeArea()
+            } else {
+                Color(hex: 0x0F0F0F).overlay { onboardingPattern(tint: KizukiTheme.charcoal) }.ignoresSafeArea()
+            }
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: screen)
         .foregroundStyle(KizukiTheme.cream)
         .task(id: screen) {
-            if screen == .splash, autoAdvanceSplash { try? await Task.sleep(for: .seconds(1.6)); if screen == .splash { screen = .login } }
+            if screen == .splash, autoAdvanceSplash {
+                do { try await Task.sleep(for: .seconds(1.6)) } catch { return }
+                if screen == .splash { screen = .login }
+            }
         }
         .sheet(isPresented: $showTerms) { termsSheet }
     }
@@ -85,27 +103,42 @@ public struct EntryFlow: View {
     private var splash: some View {
         VStack(spacing: 12) {
             Spacer()
-            KizukiIcon.wordmark.image.resizable().scaledToFit().frame(width: 280).foregroundStyle(KizukiTheme.charcoal)
+            KizukiIllustration.onboardingCrest.image.resizable().scaledToFit().frame(width: 138, height: 188).foregroundStyle(KizukiTheme.charcoal)
                 .accessibilityLabel("Kizuki")
-            Text("FIND YOUR PEOPLE.").font(KizukiTheme.mono(14)).tracking(3).foregroundStyle(KizukiTheme.charcoal)
             Spacer()
         }
         .frame(maxWidth: .infinity)
+        .offset(y: -29)
         .accessibilityElement(children: .combine)
     }
 
     private var login: some View {
+        GeometryReader { geometry in
+        ScrollView {
+        VStack(spacing: 0) {
+            KizukiIllustration.onboardingTrio.originalImage.resizable().scaledToFit()
+                .frame(maxWidth: 346).padding(.horizontal, 14)
+                .frame(maxWidth: .infinity)
+                .frame(height: dynamicTypeSize.isAccessibilitySize || emailEntry ? 210 : 262, alignment: .top)
+                .padding(.top, 38)
+                .background(alignment: .topLeading) {
+                    KizukiIllustration.onboardingLoginPattern.originalImage.resizable()
+                        .frame(width: geometry.size.width * 467 / 393, height: geometry.size.width * 434 / 393)
+                        .offset(x: -18, y: -geometry.safeAreaInsets.top - 45)
+                }
+                .accessibilityHidden(true)
         VStack(alignment: .leading, spacing: 20) {
-            Spacer()
-            KizukiIcon.kMark.image.resizable().scaledToFit().frame(height: 84).foregroundStyle(KizukiTheme.orange).accessibilityHidden(true)
-            Text("LET’S GET\nCREATIVE.").font(KizukiTheme.title(64)).lineSpacing(-6)
-            Text("Find your people.\nMake something real.").font(KizukiTheme.body(20)).foregroundStyle(KizukiTheme.babyBlue)
-            Spacer()
+            (Text("LET’S GET ") + Text("CREATIVE.").foregroundColor(KizukiTheme.orange))
+                .font(KizukiTheme.title(36)).multilineTextAlignment(.center).frame(maxWidth: .infinity)
+            Text("Find the people who have always been looking for you.")
+                .font(KizukiTheme.poppins(14)).multilineTextAlignment(.center)
+                .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : 253)
+                .frame(maxWidth: .infinity).padding(.bottom, 16)
             if emailEntry {
                 KizukiField("Email", text: $email).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Password").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
-                    SecureField("Password", text: $password).padding(.vertical, 10)
+                    Text("Password").font(KizukiTheme.poppins(12, relativeTo: .caption)).foregroundStyle(KizukiTheme.babyBlueIcons)
+                    SecureField("Password", text: $password).font(KizukiTheme.poppins(15)).padding(.vertical, 10)
                         .overlay(alignment: .bottom) { Rectangle().fill(KizukiTheme.cream.opacity(0.3)).frame(height: 0.6) }
                 }
                 PrimaryButton("Continue") { screen = .eligibility }
@@ -120,14 +153,31 @@ public struct EntryFlow: View {
             }
             Text("A space for film, music & visual arts.").font(KizukiTheme.mono(12)).foregroundStyle(KizukiTheme.babyBlueIcons).padding(.bottom, 16)
         }
-        .padding(32)
+        .padding(.horizontal, 32).padding(.top, 72).padding(.bottom, 32)
+        .frame(minHeight: max(0, geometry.size.height - 300), alignment: .top)
+        .background {
+            KizukiIllustration.onboardingLoginPaper.originalImage
+                .resizable(capInsets: EdgeInsets(top: 40, leading: 0, bottom: 0, trailing: 0))
+        }
+        }
+        }
+        .scrollDismissesKeyboard(.interactively)
+        }
+    }
+
+    private func entryIllustration(height: CGFloat) -> some View {
+        KizukiIllustration.dancingTrio.image.resizable().scaledToFit()
+            .foregroundStyle(KizukiTheme.cream).padding(20)
+            .frame(maxWidth: .infinity).frame(height: height)
+            .background { KizukiPatternBackground(tint: KizukiTheme.orange) }
+            .clipped().accessibilityHidden(true)
     }
 
     private var eligibility: some View {
         VStack(alignment: .leading, spacing: 24) {
             Spacer()
             Text("GOOD PEOPLE.\nGOOD GROUND RULES.").font(KizukiTheme.title(40))
-            Text("A creative community for adults. Let’s keep it thoughtful, safe and kind.").font(KizukiTheme.body(18)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            Text("A creative community for adults. Let’s keep it thoughtful, safe and kind.").font(KizukiTheme.poppins(16)).foregroundStyle(KizukiTheme.babyBlueIcons)
             Button { ageAndTerms.toggle() } label: {
                 HStack(alignment: .top, spacing: 14) {
                     Image(systemName: ageAndTerms ? "checkmark.square.fill" : "square").font(.system(size: 26))
@@ -163,79 +213,141 @@ public struct EntryFlow: View {
     private var validHandle: Bool { draft.person.handle.range(of: "^[a-z0-9._]{3,20}$", options: .regularExpression) != nil }
 
     private func stepScreen(_ step: OnboardingStep) -> some View {
+        GeometryReader { geometry in
         VStack(spacing: 0) {
             if !step.isPrimer {
+                if step != .handle && !dynamicTypeSize.isAccessibilitySize { sukiTip.padding(.horizontal, 11).padding(.top, 4).padding(.bottom, 16) }
                 HStack(spacing: 5) {
-                    ForEach(0..<12) { n in Capsule().fill(n <= step.rawValue ? KizukiTheme.orange : KizukiTheme.grey).frame(height: 4) }
+                    ForEach(Array(steps.enumerated()), id: \.element) { index, _ in
+                        Capsule().fill(index <= (steps.firstIndex(of: step) ?? 0) ? KizukiTheme.orange : KizukiTheme.grey).frame(height: 4)
+                    }
                 }
-                .padding(.horizontal, 20).padding(.top, 14).accessibilityHidden(true)
+                .padding(.horizontal, 13).padding(.top, step == .handle ? 14 : 0).accessibilityHidden(true)
                 HStack {
                     Button { go(back: step) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }.accessibilityLabel("Previous step")
                     Spacer()
-                    Text("\(step.rawValue + 1) / 12").font(KizukiTheme.mono()).foregroundStyle(KizukiTheme.babyBlueIcons)
+                    Text("\((steps.firstIndex(of: step) ?? 0) + 1) / \(steps.count)").font(KizukiTheme.mono()).foregroundStyle(KizukiTheme.babyBlueIcons)
                 }
                 .padding(.horizontal, 12)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    if step.isPrimer {
-                        Image(systemName: step == .notifications ? "bell.badge" : "location.circle")
-                            .font(.system(size: 80, weight: .ultraLight)).foregroundStyle(KizukiTheme.blue)
-                            .frame(maxWidth: .infinity).padding(.top, 60).accessibilityHidden(true)
+                    if !step.isPrimer && step != .handle && dynamicTypeSize.isAccessibilitySize { sukiTip }
+                    if step == .handle {
+                        HStack(spacing: 20) {
+                            Text("WELCOME!").font(KizukiTheme.title(36))
+                            KizukiIllustration.onboardingAxolotl.image.resizable().scaledToFit().frame(width: 42, height: 36).accessibilityHidden(true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 58)
                     }
-                    Text(titles[step.rawValue].uppercased()).font(KizukiTheme.title(36)).fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, step.isPrimer ? 20 : 10).accessibilityAddTraits(.isHeader)
+                    if step.isPrimer {
+                        if step == .location {
+                            entryIllustration(height: dynamicTypeSize.isAccessibilitySize ? 100 : 180)
+                        } else {
+                            KizukiIcon.sukiMascot.image.resizable().scaledToFit()
+                                .frame(height: 100).foregroundStyle(KizukiTheme.orange)
+                                .frame(maxWidth: .infinity).padding(.top, 24).accessibilityHidden(true)
+                        }
+                    }
+                    Text((draft.goal == .explore && step == .realm ? "What worlds inspire you?" : titles[step.rawValue]).uppercased()).font(KizukiTheme.title(32)).fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, step == .goal ? 30 : 10).accessibilityAddTraits(.isHeader)
                     content(step)
                 }
-                .padding(.horizontal, 28).padding(.vertical, 12)
+                .padding(.horizontal, step == .goal ? 35 : 31).padding(.vertical, 12)
+                .id(step).transition(.opacity)
             }
             .scrollDismissesKeyboard(.interactively)
             // Primers carry exactly one button (decision 31).
-            PrimaryButton(step == .ready ? "Enter Kizuki" : "Continue") { go(next: step) }
-                .disabled(step == .handle && !validHandle)
-                .padding(.horizontal, 56).padding(.bottom, 24).padding(.top, 8)
+            PrimaryButton(step == steps.last ? (draft.goal == .explore ? "Start exploring" : "Enter Kizuki") : "Continue") { go(next: step) }
+                .disabled(saving || (step == .handle && !validHandle) || (step == .roles && !RoleSelection.isValid(draft.person.roles, realm: draft.person.realm)))
+                .padding(.horizontal, 56)
+                .padding(.bottom, dynamicTypeSize.isAccessibilitySize || geometry.size.height < 600 ? 24 : 70).padding(.top, 8)
+            if saveFailed { Text("Couldn’t save your profile. Please try again.").foregroundStyle(KizukiTheme.salmon) }
+        }
+        .background {
+            if step != .handle {
+                Color(hex: 0x0F0F0F).overlay { onboardingPattern(tint: KizukiTheme.charcoal) }.ignoresSafeArea()
+            } else if step == .handle {
+                VStack {
+                    KizukiIllustration.onboardingWelcome.originalImage.resizable().frame(height: 219).rotationEffect(.degrees(180))
+                    Spacer()
+                }.ignoresSafeArea()
+            }
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: draft.goal)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: draft.person.realm)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: draft.person.roles)
+        .sensoryFeedback(.selection, trigger: draft.goal)
+        .sensoryFeedback(.selection, trigger: draft.person.realm)
+        .sensoryFeedback(.selection, trigger: draft.person.roles)
         }
     }
 
     private func go(next step: OnboardingStep) {
-        if step == .ready { onFinish(draft) } else if let n = OnboardingStep(rawValue: step.rawValue + 1) { screen = .step(n) }
+        if step == steps.last {
+            saving = true
+            Task {
+                saveFailed = !(await onFinish(draft))
+                saving = false
+            }
+        } else if let index = steps.firstIndex(of: step), steps.indices.contains(index + 1) { screen = .step(steps[index + 1]) }
     }
     private func go(back step: OnboardingStep) {
-        if let p = OnboardingStep(rawValue: step.rawValue - 1) { screen = .step(p) } else { screen = .eligibility }
+        if let index = steps.firstIndex(of: step), index > 0 { screen = .step(steps[index - 1]) } else { screen = .eligibility }
     }
 
     @ViewBuilder private func content(_ step: OnboardingStep) -> some View {
         switch step {
         case .handle:
-            lead("A name for the credits. A handle for your people.")
             KizukiField("Display name", text: bind(\.person.name))
             KizukiField("Handle", text: bind(\.person.handle)).textInputAutocapitalization(.never).autocorrectionDisabled()
-            Text("3–20 lowercase letters, numbers, dots or underscores.").font(KizukiTheme.mono(11))
+            Text("3–20 lowercase letters, numbers, dots or underscores.").font(KizukiTheme.poppins(12, relativeTo: .caption))
                 .foregroundStyle(validHandle ? KizukiTheme.babyBlueIcons : KizukiTheme.orange)
-            PersonAvatar(draft.person.id, size: 96).frame(maxWidth: .infinity).padding(.top, 16)
+            PersonAvatar(draft.person.id, size: 96)
+                .frame(maxWidth: .infinity).padding(.top, 16)
         case .goal:
-            ForEach(Goal.allCases, id: \.self) { goal in ChoiceRow(goal.rawValue, selected: draft.goal == goal) { draft.goal = goal } }
+            VStack(spacing: 24) {
+                ForEach(Goal.allCases, id: \.self) { goal in
+                    onboardingChoice(goal.rawValue, selected: draft.goal == goal, height: 111,
+                                     illustration: goal == .collaborate ? .onboardingEyes : .onboardingEye) {
+                        draft.goal = goal
+                        if goal == .explore { draft.person.roles = [] }
+                        else if draft.person.roles.isEmpty { draft.person.roles = [draft.person.realm.roleOptions[0]] }
+                    }
+                }
+            }.padding(.top, 28)
             if draft.goal == .collaborate {
                 Text("What’s your next move?").font(KizukiTheme.title(24))
-                ForEach(Intent.allCases, id: \.self) { intent in ChoiceRow(intent.rawValue, selected: draft.intent == intent) { draft.intent = intent } }
+                ForEach(Intent.allCases, id: \.self) { intent in
+                    onboardingChoice(intent.rawValue, selected: draft.intent == intent, height: 56) { draft.intent = intent }
+                }
             }
         case .realm:
-            lead("Pick the place you start. You can cross disciplines later.")
+            lead(draft.goal == .explore ? "Choose a starting point for discovery. You can browse every realm. No role or availability needed." : "Pick the place you start. You can cross disciplines later.")
             ForEach(Realm.allCases, id: \.self) { realm in
-                ChoiceRow(realm.rawValue, selected: draft.person.realm == realm) {
-                    draft.person.realm = realm; draft.person.roles = [realm.roleOptions[0]]
+                onboardingChoice(realm.rawValue, selected: draft.person.realm == realm, height: 48) {
+                    draft.person.realm = realm; draft.person.roles = draft.goal == .explore ? [] : [realm.roleOptions[0]]
                 }
             }
         case .roles:
-            lead("Choose up to three. Your first role is your starting point.")
-            FlowLayout(spacing: 10) {
+            lead("Choose one main role and up to three secondary roles. All help matching; your main role weighs more.")
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2), spacing: 15) {
                 ForEach(draft.person.realm.roleOptions, id: \.self) { role in
-                    Button { toggleRole(role) } label: { KizukiChip(role, selected: draft.person.roles.contains(role)).frame(minHeight: 44) }
-                        .buttonStyle(.plain).accessibilityAddTraits(draft.person.roles.contains(role) ? .isSelected : [])
+                    VStack {
+                        onboardingChoice(role, selected: draft.person.roles.contains(role), height: 80, tile: true) { toggleRole(role) }
+                            .accessibilityValue(draft.person.roles.first == role ? "Main" : draft.person.roles.contains(role) ? "Secondary" : "Not selected")
+                        if draft.person.roles.contains(role) {
+                            Text(draft.person.roles.first == role ? "Main" : "Secondary").font(KizukiTheme.mono(11))
+                            if draft.person.roles.first != role {
+                                Button("Make main") { draft.person.roles = RoleSelection.promoting(role, in: draft.person.roles) }
+                                    .accessibilityLabel("Make \(role) main").frame(minHeight: 44)
+                            }
+                        }
+                    }
                 }
             }
         case .taste:
-            lead("A few instincts. Tap the worlds you’d like to explore. Placeholder images.")
+            lead("A few instincts. Tap the worlds you’d like to explore. These are sample references.")
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 ForEach(0..<6, id: \.self) { i in
                     let on = draft.tasteCards.contains(i)
@@ -269,29 +381,87 @@ public struct EntryFlow: View {
             ForEach(Availability.allCases, id: \.self) { a in ChoiceRow(a.rawValue, selected: draft.availability == a) { draft.availability = a } }
         case .city:
             KizukiField("City (shown on your profile)", text: bind(\.person.city))
-            Text("How do you want to work?").font(KizukiTheme.title(24))
-            ForEach(WorkMode.allCases, id: \.self) { m in ChoiceRow(m.rawValue, selected: draft.workMode == m) { draft.workMode = m } }
-        case .notifications:
-            Text("Know when someone wants to create with you, accepts your request, or sends a message.").font(KizukiTheme.body(18)).foregroundStyle(KizukiTheme.babyBlueIcons)
-        case .location:
-            Text("Use your location once to suggest a city. Your exact location is never stored.").font(KizukiTheme.body(18)).foregroundStyle(KizukiTheme.babyBlueIcons)
-        case .ready:
-            HStack(spacing: 8) {
-                ForEach(1...3, id: \.self) { n in PersonAvatar(FixtureIDs.sample(n), size: 72) }
+            if draft.goal == .collaborate {
+                Text("How do you want to work?").font(KizukiTheme.title(24))
+                ForEach(WorkMode.allCases, id: \.self) { m in ChoiceRow(m.rawValue, selected: draft.workMode == m) { draft.workMode = m } }
             }
-            .frame(maxWidth: .infinity).padding(.vertical, 24)
-            Text("Your creative space is ready, \(draft.person.firstName).").font(KizukiTheme.body(20))
-            Text("Film, music, visual arts. A city full of possibilities.").foregroundStyle(KizukiTheme.babyBlueIcons)
+        case .notifications:
+            Text(draft.goal == .explore ? "Explore at your own pace. Notification preferences are available in Settings; nothing is enabled here." : "Know when someone wants to create with you, accepts your request, or sends a message.").font(KizukiTheme.poppins(15)).foregroundStyle(KizukiTheme.babyBlueIcons)
+        case .location:
+            Text("Use your location once to suggest a city. Your exact location is never stored.").font(KizukiTheme.poppins(15)).foregroundStyle(KizukiTheme.babyBlueIcons)
+
         }
     }
 
-    private func lead(_ text: String) -> some View { Text(text).font(KizukiTheme.body(16)).foregroundStyle(KizukiTheme.babyBlueIcons) }
+    private var sukiTip: some View {
+        HStack(spacing: 24) {
+            Text("The more we know about you, the better your recommendations will be.")
+                .font(KizukiTheme.title(16)).foregroundStyle(KizukiTheme.cream.opacity(0.85))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            KizukiIllustration.onboardingSuki.image.resizable().scaledToFit()
+                .frame(width: 30, height: 37).accessibilityHidden(true)
+        }
+        .padding(.horizontal, 15).padding(.vertical, 9).frame(minHeight: 56)
+        .background(KizukiTheme.darkGrey)
+        .overlay { roughEdge(.onboardingTipEdge) }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func onboardingPattern(tint: Color) -> some View {
+        GeometryReader { geometry in
+            let scale = max(geometry.size.width / 393, geometry.size.height / 852)
+            KizukiIllustration.onboardingPattern.image.resizable()
+                .frame(width: 3862.13 * scale, height: 2143.66 * scale)
+                .offset(x: -1160.516 * scale, y: -373.184 * scale)
+                .foregroundStyle(tint)
+        }
+        .clipped().allowsHitTesting(false).accessibilityHidden(true)
+    }
+
+    private func roughEdge(_ asset: KizukiIllustration, tint: Color? = nil) -> some View {
+        (tint ?? KizukiTheme.cream.opacity(0.6))
+            .mask {
+                asset.originalImage.resizable(capInsets: EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+                    .contrast(3).luminanceToAlpha()
+                    .mask { Rectangle().strokeBorder(lineWidth: 11) }
+                    .padding(-3)
+            }
+            .allowsHitTesting(false).accessibilityHidden(true)
+    }
+
+    private func onboardingChoice(_ title: String, selected: Bool, height: CGFloat,
+                                  illustration: KizukiIllustration? = nil, tile: Bool = false,
+                                  action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
+            layout {
+                Text(title).font(KizukiTheme.monoMedium(16)).tracking(-0.48)
+                    .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let illustration {
+                    illustration.image.resizable().scaledToFit()
+                        .frame(width: illustration == .onboardingEyes ? 74 : 62, height: 64)
+                        .accessibilityHidden(true)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: height, alignment: tile ? .bottomLeading : .center)
+            .foregroundStyle(selected ? KizukiTheme.charcoal : KizukiTheme.cream)
+            .background(selected ? KizukiTheme.babyBlueIcons : KizukiTheme.darkGrey)
+            .overlay { roughEdge(.onboardingCardEdge, tint: tile ? (selected ? KizukiTheme.babyBlueIcons : KizukiTheme.charcoal) : nil) }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityValue(selected ? "Selected" : "Not selected")
+    }
+
+    private func lead(_ text: String) -> some View { Text(text).font(KizukiTheme.poppins(14)).foregroundStyle(KizukiTheme.babyBlueIcons) }
     private func bind(_ keyPath: WritableKeyPath<OwnProfile, String>) -> Binding<String> {
         Binding(get: { draft[keyPath: keyPath] }, set: { draft[keyPath: keyPath] = $0 })
     }
     private func toggleRole(_ role: String) {
-        if draft.person.roles.contains(role) { if draft.person.roles.count > 1 { draft.person.roles.removeAll { $0 == role } } }
-        else if draft.person.roles.count < 3 { draft.person.roles.append(role) }
+        draft.person.roles = RoleSelection.toggling(role, in: draft.person.roles, realm: draft.person.realm)
     }
 
     static let films = ["Perfect Days", "Aftersun", "Paris, Texas", "Moonlight", "Portrait of a Lady on Fire", "Wings of Desire"]
