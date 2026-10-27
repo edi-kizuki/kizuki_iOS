@@ -223,11 +223,13 @@ public struct PageScroll<Content: View>: View {
 
 /// Top bar with the blue K (or a page title), settings gear and DM icon (decision 19).
 public struct KizukiTopBar: View {
+    @AppStorage("kizuki.headerAppearance") private var headerAppearance = "minimal"
     let title: String
+    let symbol: KizukiIcon?
     let onSettings: () -> Void
     let onInbox: () -> Void
-    public init(title: String = "", onSettings: @escaping () -> Void, onInbox: @escaping () -> Void) {
-        self.title = title; self.onSettings = onSettings; self.onInbox = onInbox
+    public init(title: String = "", symbol: KizukiIcon? = nil, onSettings: @escaping () -> Void, onInbox: @escaping () -> Void) {
+        self.title = title; self.symbol = symbol; self.onSettings = onSettings; self.onInbox = onInbox
     }
     public var body: some View {
         HStack {
@@ -235,8 +237,14 @@ public struct KizukiTopBar: View {
                 // Figma "Feed / Discovery Page" header: the 22 x 42 blue k at the left, 5.5 pt further in than the title.
                 KizukiIcon.feedLogo.image.resizable().scaledToFit().frame(width: 22, height: 42.2346)
                     .padding(.leading, 5.5).offset(y: -3).accessibilityLabel("Kizuki").accessibilityAddTraits(.isHeader)
+            } else if headerAppearance == "symbols", let symbol {
+                symbol.image.resizable().scaledToFit().frame(width: 34, height: 38)
+                    .foregroundStyle(KizukiTheme.babyBlue).accessibilityLabel(title).accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("tab-header-symbol")
             } else {
-                Text(title).font(KizukiTheme.title(32)).accessibilityAddTraits(.isHeader)
+                Color.clear.frame(width: 1, height: 1).accessibilityElement()
+                    .accessibilityLabel(title).accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("tab-header-minimal")
             }
             Spacer()
             // Figma: two 24 pt icons 20 pt apart (two 44 pt targets side by side), sitting slightly below the logo's centre line.

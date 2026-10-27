@@ -13,7 +13,7 @@ public struct MyProjectsView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            KizukiTopBar(title: "My Projects", onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
+            KizukiTopBar(title: "My Projects", symbol: .tabMyProjects, onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
             PageScroll(spacing: 18) {
                 HStack {
                     Text("Ideas into the world.").font(KizukiTheme.mono(13)).foregroundStyle(KizukiTheme.babyBlueIcons)

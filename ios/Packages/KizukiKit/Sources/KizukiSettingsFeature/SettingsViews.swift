@@ -5,6 +5,7 @@ import SwiftUI
 
 public struct SettingsRootView: View {
     @Environment(AppRouter.self) private var router
+    @AppStorage("kizuki.headerAppearance") private var headerAppearance = "minimal"
     public init() {}
     private let symbols: [SettingsPage: String] = [.account: "person.crop.circle", .notifications: "bell", .privacy: "lock.shield", .help: "questionmark.circle", .legal: "doc.text"]
 
@@ -22,6 +23,15 @@ public struct SettingsRootView: View {
                 }
                 .buttonStyle(.plain)
             }
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Header appearance").font(KizukiTheme.title(22))
+                Picker("Header appearance", selection: $headerAppearance) {
+                    Text("Minimal").tag("minimal")
+                    Text("Symbols").tag("symbols")
+                }.pickerStyle(.segmented)
+                Text("Try a quiet header or a little character. Tab labels and navigation stay the same.")
+                    .font(KizukiTheme.body(13)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            }.padding(.top, 20)
             Text("Kizuki prototype · fixture data only").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons).padding(.top, 12)
         }
         .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)

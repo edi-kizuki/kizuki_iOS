@@ -13,7 +13,7 @@ public struct SukiView: View {
     public var body: some View {
         @Bindable var router = router
         VStack(spacing: 14) {
-            KizukiTopBar(title: "Suki", onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
+            KizukiTopBar(title: "Suki", symbol: .sukiMascot, onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
             Picker("Suki section", selection: $router.sukiSection) {
                 Text("Crew").tag(SukiSection.crew); Text("Requests").tag(SukiSection.requests); Text("Create").tag(SukiSection.create)
             }
