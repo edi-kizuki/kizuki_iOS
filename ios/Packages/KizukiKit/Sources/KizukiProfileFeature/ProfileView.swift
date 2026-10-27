@@ -17,7 +17,7 @@ public struct ProfileView: View {
     public var body: some View {
         let isMe = personID == store.me.id
         VStack(spacing: 0) {
-            if embedsInTab { KizukiTopBar(title: "Profile", onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) }) }
+            if embedsInTab { KizukiTopBar(title: "Profile", symbol: .tabProfile, onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) }) }
             if let person = store.person(personID), isMe || !store.isBlocked(personID) {
                 PageScroll(spacing: 20) { content(person, isMe: isMe) }
                     .navigationTitle(isMe ? "" : person.name).navigationBarTitleDisplayMode(.inline)

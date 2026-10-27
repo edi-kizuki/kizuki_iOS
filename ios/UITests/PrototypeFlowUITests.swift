@@ -137,6 +137,34 @@ final class PrototypeFlowUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["I’m available to collab"].exists)
     }
 
+    @MainActor func testHeaderExperimentKeepsTabNavigationAndActions() {
+        let app = launch(["-fixtures", "-screen", "settings"])
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 8))
+        app.segmentedControls.buttons["Minimal"].tap()
+        app.navigationBars["Settings"].buttons.firstMatch.tap()
+        for label in ["Search", "Suki", "My Projects", "Profile"] {
+            app.tabBars.buttons[label].tap()
+            XCTAssertTrue(app.tabBars.buttons[label].isSelected)
+            XCTAssertTrue(app.descendants(matching: .any)["tab-header-minimal"].exists)
+            XCTAssertFalse(app.descendants(matching: .any)["tab-header-symbol"].exists)
+            XCTAssertTrue(button(app, "Settings").isHittable)
+            XCTAssertTrue(button(app, "Messages").isHittable)
+        }
+        button(app, "Settings").tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        app.segmentedControls.buttons["Symbols"].tap()
+        app.navigationBars["Settings"].buttons.firstMatch.tap()
+        for label in ["Profile", "Search", "Suki", "My Projects"] {
+            app.tabBars.buttons[label].tap()
+            XCTAssertTrue(app.descendants(matching: .any)["tab-header-symbol"].exists)
+            XCTAssertFalse(app.descendants(matching: .any)["tab-header-minimal"].exists)
+            XCTAssertTrue(button(app, "Settings").isHittable)
+            XCTAssertTrue(button(app, "Messages").isHittable)
+        }
+        button(app, "Settings").tap()
+        app.segmentedControls.buttons["Minimal"].tap()
+    }
+
     @MainActor func testDebugDefaultAndTabBarAccessibilityScreenshots() {
         let app = launch(["-screen", "home"]) // No -fixtures: Debug still defaults to fixtures.
         XCTAssertTrue(app.staticTexts["Recommended projects"].waitForExistence(timeout: 8))
