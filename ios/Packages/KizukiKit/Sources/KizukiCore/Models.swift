@@ -16,7 +16,7 @@ public enum Realm: String, CaseIterable, Sendable, Hashable, Codable {
 
 public enum LinkKind: String, CaseIterable, Sendable, Hashable, Codable {
     case youtube = "YouTube", soundcloud = "SoundCloud", bandcamp = "Bandcamp"
-    case instagram = "Instagram", letterboxd = "Letterboxd"
+    case instagram = "Instagram", letterboxd = "Letterboxd", tiktok = "TikTok"
     /// v0 rule (decision 23 and the defaults list): three embeds, two link-outs.
     public var isEmbed: Bool { self == .youtube || self == .soundcloud || self == .bandcamp }
     public var symbol: String {
@@ -26,6 +26,7 @@ public enum LinkKind: String, CaseIterable, Sendable, Hashable, Codable {
         case .bandcamp: "opticaldisc"
         case .instagram: "camera"
         case .letterboxd: "film"
+        case .tiktok: "music.note"
         }
     }
 }
@@ -35,7 +36,11 @@ public struct ProfileLink: Sendable, Hashable, Identifiable, Codable {
     public let kind: LinkKind
     public let title: String
     public let url: String
-    public init(kind: LinkKind, title: String, url: String) { self.kind = kind; self.title = title; self.url = url }
+    private let enabled: Bool?
+    public var isEnabled: Bool { enabled != false }
+    public init(kind: LinkKind, title: String, url: String, isEnabled: Bool = true) {
+        self.kind = kind; self.title = title; self.url = url; self.enabled = isEnabled ? nil : false
+    }
 }
 
 public struct PortfolioWidgetDescriptor: Sendable, Equatable {
@@ -58,6 +63,7 @@ public struct PortfolioWidgetDescriptor: Sendable, Equatable {
         case .bandcamp: allowed = host == "bandcamp.com" || host.hasSuffix(".bandcamp.com")
         case .instagram: allowed = ["instagram.com", "www.instagram.com"].contains(host)
         case .letterboxd: allowed = ["letterboxd.com", "www.letterboxd.com"].contains(host)
+        case .tiktok: allowed = ["tiktok.com", "www.tiktok.com", "m.tiktok.com", "vm.tiktok.com", "vt.tiktok.com"].contains(host)
         }
         guard allowed else { state = .invalid; externalURL = nil; embedURL = nil; return }
         components.fragment = nil
@@ -100,6 +106,7 @@ public struct Person: Identifiable, Sendable, Hashable, Codable {
     public var city: String
     public var bio: String
     public var links: [ProfileLink]
+    public var visibleLinks: [ProfileLink] { links.filter(\.isEnabled) }
     public var favourites: [String]
     /// Public on every profile (decision 51). Work mode and pay preference stay owner-only.
     public var availability: Availability

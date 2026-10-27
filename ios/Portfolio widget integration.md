@@ -6,6 +6,12 @@ Related: [[Models]], [[ProfileView]], [[AppStore]], [[StockPhotoCredits]], [[202
 
 `ProfileLink` remains the persisted portfolio input, one link per provider. Profile editing validates new or changed HTTPS URLs against provider hosts. Existing fictional demo links remain visible as disconnected placeholders and can be cleared. Save is atomic through the profile repository. Portfolio links do not feed recommendation scoring.
 
+Each provider has an optional Show widget toggle. New, unconfigured widgets start off. Turning a configured widget off hides its card while retaining its URL; turning it back on restores it. Visibility is persisted per link. Older saved links without a visibility field remain visible. Enabled widgets require a URL. Disabled widgets do not load third-party content. These controls currently use the local profile repository; live syncing and playback remain pending.
+
+The live public profile projection must omit disabled links rather than rely only on client rendering. Keep saved hidden URLs in the owner's private profile data.
+
+Widget-toggle verification: 80 unit tests, the end-to-end editor toggle/save/reopen test, and 10 release-configuration checks passed. The Staging build and artifact inspection passed. Tests cover all three requested providers, hidden-link cold restoration, legacy decoding, and TikTok origin validation.
+
 `PortfolioWidgetDescriptor` resolves typed states without network access or arbitrary HTML: invalid, link-only, embed-available, metadata-required. It exposes a validated external destination and, where supported, a canonical player URL. Rendering currently uses external links only. No cookies, autoplay, remote metadata, or third-party scripts load merely because a profile is visible.
 
 | Provider | Prepared behavior | Work before in-app playback |
@@ -15,6 +21,7 @@ Related: [[Models]], [[ProfileView]], [[AppStore]], [[StockPhotoCredits]], [[202
 | Bandcamp | Valid album/track link, metadata-required state | Resolve numeric album/track ID using an approved provider flow; never guess IDs or inject scraped HTML |
 | Instagram | Validated external link | Keep external until a supported, review-safe embed/auth path is chosen |
 | Letterboxd | Validated external link | Optional user-authorized RSS import later; preview before save; no automatic matching use |
+| TikTok | Optional profile/video/share link on explicitly allowed TikTok HTTPS hosts | External link only; approved embed flow and consent-gated player remain pending |
 
 ## Next implementation contract
 

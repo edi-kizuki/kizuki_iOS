@@ -7,6 +7,47 @@ import UIKit
 
 @MainActor
 struct PrototypeStoreTests {
+    @Test func widgetVisibilitySurvivesColdLoadWithoutDeletingLinks() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("profile.json")
+        let store = AppStore(dependencies: FixtureBackend.dependencies(storageURL: url))
+        await store.load()
+        let links = [
+            ProfileLink(kind: .bandcamp, title: "Album", url: "https://artist.bandcamp.com/album/example", isEnabled: false),
+            ProfileLink(kind: .soundcloud, title: "Track", url: "https://soundcloud.com/artist/track", isEnabled: false),
+            ProfileLink(kind: .tiktok, title: "Videos", url: "https://www.tiktok.com/@artist", isEnabled: false)
+        ]
+        #expect(await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: store.me.roles, availability: .mid, compensation: .open, links: links))
+        let restored = await FixtureBackend(storageURL: url).own()
+        #expect(restored.person.links == links)
+        #expect(restored.person.visibleLinks.isEmpty)
+        let enabled = links.map { ProfileLink(kind: $0.kind, title: $0.title, url: $0.url) }
+        #expect(await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: store.me.roles, availability: .mid, compensation: .open, links: enabled))
+        #expect(await FixtureBackend(storageURL: url).own().person.visibleLinks == enabled)
+    }
+
+    @Test func legacyLinksDefaultToVisibleAndDemoLinksCanBeHidden() async throws {
+        let legacy = try JSONDecoder().decode(ProfileLink.self, from: Data(#"{"kind":"SoundCloud","title":"Track","url":"https://soundcloud.com/artist/track"}"#.utf8))
+        #expect(legacy.isEnabled)
+        let store = await loadedStore()
+        let hidden = store.me.links.map { ProfileLink(kind: $0.kind, title: $0.title, url: $0.url, isEnabled: false) }
+        #expect(await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: store.me.roles, availability: .mid, compensation: .open, links: hidden))
+        #expect(store.me.visibleLinks.isEmpty)
+        #expect(store.me.links == hidden)
+    }
+
+    @Test func tiktokAllowsOnlyOfficialHTTPSDestinations() {
+        for url in ["https://www.tiktok.com/@artist", "https://www.tiktok.com/@artist/video/123456789", "https://vm.tiktok.com/abc/", "https://vt.tiktok.com/abc/"] {
+            let descriptor = PortfolioWidgetDescriptor(link: ProfileLink(kind: .tiktok, title: "TikTok", url: url))
+            #expect(descriptor.state == .linkOnly)
+            #expect(descriptor.externalURL != nil)
+            #expect(descriptor.embedURL == nil)
+        }
+        for url in ["http://tiktok.com/@artist", "https://tiktok.com.evil.test/@artist", "https://evil.tiktok.com/@artist", "https://user@tiktok.com/@artist", "https://tiktok.com:8080/@artist", "javascript:alert(1)"] {
+            #expect(PortfolioWidgetDescriptor(link: ProfileLink(kind: .tiktok, title: "TikTok", url: url)).state == .invalid)
+        }
+    }
     @Test func expandedTaxonomyIncludesPainterAndExistingCreativeRoles() {
         #expect(Realm.visualArts.roleOptions.contains("Painter"))
         #expect(Realm.visualArts.roleOptions.contains("Graphic designer"))

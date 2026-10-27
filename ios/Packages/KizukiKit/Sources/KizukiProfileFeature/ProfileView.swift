@@ -98,9 +98,9 @@ public struct ProfileView: View {
             SectionTitle("Favourites")
             FlowLayout(spacing: 8) { ForEach(favourites, id: \.self) { KizukiChip($0) } }
         }
-        if !person.links.isEmpty {
+        if !person.visibleLinks.isEmpty {
             SectionTitle("Work")
-            ForEach(person.links) { EmbedCard(link: $0) }
+            ForEach(person.visibleLinks) { EmbedCard(link: $0) }
         }
         let photos = store.visiblePhotos.filter { $0.authorID == person.id }
         SectionTitle("Collabs")
@@ -209,6 +209,7 @@ public struct EditProfileView: View {
     @State private var compensation: Compensation = .open
     @State private var goal: Goal = .collaborate
     @State private var linkURLs: [LinkKind: String] = [:]
+    @State private var enabledWidgets: Set<LinkKind> = []
     @State private var saving = false
     @State private var saveFailed = false
     public init() {}
@@ -253,13 +254,18 @@ public struct EditProfileView: View {
             Text("Compensation preference").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ForEach(Compensation.allCases, id: \.self) { c in ChoiceRow(c.rawValue, selected: compensation == c) { compensation = c } }
             }
-            Text("Portfolio links").font(KizukiTheme.title(22))
-            Text("Add your work from any of these platforms. Links open externally for now. They are not used for matching.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            Text("Portfolio widgets").font(KizukiTheme.title(22))
+            Text("All widgets are optional. Turn one off to hide it without deleting its link. Links open externally for now and are not used for matching.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ForEach(LinkKind.allCases, id: \.self) { kind in
-                KizukiField(kind.rawValue, text: Binding(get: { linkURLs[kind] ?? "" }, set: { linkURLs[kind] = $0 }), prompt: "https://…")
-                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                Toggle("Show \(kind.rawValue) widget", isOn: Binding(get: { enabledWidgets.contains(kind) }, set: { enabled in
+                    if enabled { enabledWidgets.insert(kind) } else { enabledWidgets.remove(kind) }
+                })).tint(KizukiTheme.orange)
+                if enabledWidgets.contains(kind) || !(linkURLs[kind] ?? "").isEmpty {
+                    KizukiField(kind.rawValue, text: Binding(get: { linkURLs[kind] ?? "" }, set: { linkURLs[kind] = $0 }), prompt: "https://…")
+                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                }
             }
-            if !validLinks { Text("Use an HTTPS link from the named platform. Remove a link by clearing its field.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.salmon) }
+            if !validLinks { Text("Add an HTTPS link from the named platform, or turn off empty widgets. To remove a saved link, turn its widget off and clear the field.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.salmon) }
         }
         .disabled(saving)
         .safeAreaInset(edge: .bottom) {
@@ -287,6 +293,7 @@ public struct EditProfileView: View {
             availability = store.own.availability; compensation = store.own.compensation
             goal = store.own.goal
             linkURLs = Dictionary(uniqueKeysWithValues: store.me.links.map { ($0.kind, $0.url) })
+            enabledWidgets = Set(store.me.visibleLinks.map(\.kind))
         }
     }
 
@@ -295,11 +302,14 @@ public struct EditProfileView: View {
             let url = (linkURLs[kind] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             guard !url.isEmpty else { return nil }
             let title = store.me.links.first(where: { $0.kind == kind && $0.url == url })?.title ?? kind.rawValue
-            return ProfileLink(kind: kind, title: title, url: url)
+            return ProfileLink(kind: kind, title: title, url: url, isEnabled: enabledWidgets.contains(kind))
         }
     }
     private var validLinks: Bool {
-        editedLinks.allSatisfy { store.me.links.contains($0) || PortfolioWidgetDescriptor(link: $0).state != .invalid }
+        enabledWidgets.allSatisfy { !(linkURLs[$0] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            && editedLinks.allSatisfy { link in
+                store.me.links.contains { $0.kind == link.kind && $0.url == link.url } || PortfolioWidgetDescriptor(link: link).state != .invalid
+            }
     }
 }
 #endif

@@ -108,7 +108,9 @@ public final class AppStore {
         var profile = own
         if let links {
             guard Set(links.map(\.kind)).count == links.count,
-                  links.allSatisfy({ own.person.links.contains($0) || PortfolioWidgetDescriptor(link: $0).state != .invalid }) else { return false }
+                  links.allSatisfy({ link in
+                      own.person.links.contains { $0.kind == link.kind && $0.url == link.url } || PortfolioWidgetDescriptor(link: link).state != .invalid
+                  }) else { return false }
             profile.person.links = links
         }
         if let goal { profile.goal = goal }

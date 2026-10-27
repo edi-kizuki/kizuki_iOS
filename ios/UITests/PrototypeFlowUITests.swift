@@ -3,6 +3,57 @@ import XCTest
 /// Clicks through the fixture-backed prototype: entry, onboarding, every tab, and
 /// request → accept → Crew → chat. No backend is involved.
 final class PrototypeFlowUITests: XCTestCase {
+    @MainActor func testOptionalWidgetsRetainLinksWhenTurnedOff() {
+        let app = launch(["-fixtures", "-screen", "profile-edit"])
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 8))
+        func reveal(_ element: XCUIElement) {
+            for _ in 0..<35 {
+                let top = app.navigationBars["Edit profile"].frame.maxY + 12
+                let bottom = button(app, "Save").frame.minY - 20
+                if element.isHittable && element.frame.minY > top && element.frame.maxY < bottom { return }
+                let reverse = element.exists && element.frame.height > 0 && element.frame.minY < top
+                let upper = top + (bottom - top) * 0.25
+                let lower = top + (bottom - top) * 0.75
+                let origin = app.coordinate(withNormalizedOffset: .zero)
+                origin.withOffset(CGVector(dx: app.frame.midX, dy: reverse ? upper : lower))
+                    .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: app.frame.midX, dy: reverse ? lower : upper)))
+            }
+            XCTFail("Widget control not reachable")
+        }
+        let widgets = [("SoundCloud", "https://soundcloud.com/artist/track"), ("Bandcamp", "https://artist.bandcamp.com/album/example"), ("TikTok", "https://www.tiktok.com/@artist")]
+        for (provider, url) in widgets {
+            let toggle = app.switches["Show \(provider) widget"]
+            reveal(toggle)
+            XCTAssertEqual(toggle.value as? String, "0")
+            toggle.tap()
+            XCTAssertFalse(button(app, "Save").isEnabled)
+            let field = app.textFields[provider]
+            reveal(field)
+            field.tap()
+            field.typeText(url)
+        }
+        button(app, "Save").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
+        for (provider, url) in widgets {
+            let toggle = app.switches["Show \(provider) widget"]
+            reveal(toggle)
+            XCTAssertEqual(toggle.value as? String, "1")
+            toggle.tap()
+            XCTAssertEqual(app.textFields[provider].value as? String, url)
+        }
+        button(app, "Save").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
+        for (provider, url) in widgets {
+            let toggle = app.switches["Show \(provider) widget"]
+            reveal(toggle)
+            XCTAssertEqual(toggle.value as? String, "0")
+            XCTAssertEqual(app.textFields[provider].value as? String, url)
+        }
+    }
     @MainActor private func launch(_ args: [String] = ["-fixtures"]) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
