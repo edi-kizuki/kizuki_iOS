@@ -24,7 +24,7 @@ public struct SearchView: View {
 
     public var body: some View {
         VStack(spacing: 12) {
-            KizukiTopBar(title: "Search", onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
+            KizukiTopBar(title: "Search", symbol: .tabSearch, onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
             KizukiSearchField("Search photos & videos", text: $query).padding(.horizontal, 16)
             Text("Demo gallery · stock photography").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ScrollView(.horizontal, showsIndicators: false) {

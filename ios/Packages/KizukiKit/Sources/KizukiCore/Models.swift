@@ -19,6 +19,30 @@ public enum LinkKind: String, CaseIterable, Sendable, Hashable, Codable {
     case instagram = "Instagram", letterboxd = "Letterboxd", tiktok = "TikTok"
     /// v0 rule (decision 23 and the defaults list): three embeds, two link-outs.
     public var isEmbed: Bool { self == .youtube || self == .soundcloud || self == .bandcamp }
+    public var iconAsset: String { "Provider" + rawValue }
+    public var exampleURL: String {
+        switch self {
+        case .youtube: "youtube.com/@yourchannel"
+        case .soundcloud: "soundcloud.com/yourname"
+        case .bandcamp: "yourname.bandcamp.com"
+        case .instagram: "instagram.com/yourname"
+        case .letterboxd: "letterboxd.com/yourname"
+        case .tiktok: "tiktok.com/@yourname"
+        }
+    }
+
+    public func normalizedPortfolioURL(_ input: String) -> String? {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.contains(where: { $0.isWhitespace }), !trimmed.contains("\\") else { return nil }
+        let hasScheme = trimmed.range(of: "^[A-Za-z][A-Za-z0-9+.-]*:", options: .regularExpression) != nil
+        let candidate = hasScheme ? trimmed : "https://" + trimmed
+        guard var components = URLComponents(string: candidate), components.scheme?.lowercased() == "https" else { return nil }
+        components.scheme = "https"
+        components.host = components.host?.lowercased()
+        guard let url = components.url?.absoluteString,
+              PortfolioWidgetDescriptor(link: ProfileLink(kind: self, title: rawValue, url: url)).state != .invalid else { return nil }
+        return url
+    }
     public var symbol: String {
         switch self {
         case .youtube: "play.rectangle.fill"
