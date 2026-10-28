@@ -25,13 +25,23 @@ Crew cards use larger avatars, the shared bold body type, the existing outlined 
 
 The user asked for cards closer to Feed and the rounded, floating feel of iOS 26. Crew, incoming/sent Requests, Create choices, and all My Projects sections (Drafts, Published, Past) share a 20-point continuous corner radius, 12-point outer gutters, a subtle border and soft shadow. This is a shared opaque content surface, not a custom glass imitation. Backgrounds remain edge-to-edge. Feed project thumbnails also retain rounded card corners. Request actions stack when horizontal space is insufficient; project titles wrap rather than truncate.
 
-The initial “Your next move” carousel is superseded by compact Kizuki Blue (`#3F7BE2`) inline banners. There is no section heading, counter, horizontal prompt carousel, category label, or separate CTA row. One banner appears before the recommendations; remaining applicable banners sit between/after feed sections. A short label, leading symbol and trailing chevron keep the prompt secondary to the content. The label uses charcoal 19-point bold type (minimum Large Dynamic Type), meeting large-text contrast against the exact palette blue without inventing a darker shade. Supporting detail stays in the VoiceOver label. Text wraps at accessibility sizes. The four state-driven prompt types remain:
+The initial “Your next move” carousel and subsequent solid-blue banners are superseded by quiet inline notices. There is no section heading, counter, horizontal prompt carousel, category label, or separate CTA row. One banner appears before the recommendations; remaining applicable banners sit between/after feed sections. The notice uses Kizuki Blue (`#3F7BE2`) at 14% opacity over the existing Baby Blue feed background, charcoal 14-point regular text, a blue leading symbol and a small chevron. The default row is 44 points high, with no shadow or border. Supporting detail stays in the VoiceOver label. Text scales and wraps at accessibility sizes without a minimum text-size override. The four state-driven prompt types remain:
 - Finish an owned draft: opens that project. Any collaborating user with a draft can resume it, regardless of their original start/join intent.
 - Review incoming pending requests: opens Suki → Requests → Incoming and resets stale detail navigation.
 - Finish profile basics: opens Edit profile and disappears once the existing completion rules are satisfied.
 - Say hello to a Crew connection with an empty conversation: opens that chat and disappears after a message. Fixture request acceptance no longer inserts a fabricated message on the user's behalf.
 
 Only applicable prompts appear. Blocked people and resolved requests are excluded. Inspiration-only users do not receive collaboration prompts. No unread status, freshness, deadlines or urgency is invented. These are Debug/local screens backed by repository state, not a live notification service.
+
+### Flush profile cover — October 28 follow-up
+
+The own-profile tab cover now extends across the full screen width and behind the status area. It is a separate full-width section rather than a child of the padded profile body. Its height remains 184 points, with the identity block overlapping the bottom by 24 points, bringing the profile higher on screen. Settings stays below the top safe-area inset with a 44-point target and a 20-point trailing inset. Body text retains readable gutters; work media and the collab gallery remain full-width. Other people's profiles retain their native navigation and report/block menu. The existing patterned cover is preserved; no uploaded-cover backend is implied.
+
+At accessibility text sizes, the completion heading and count stack vertically so the count no longer forces the heading into broken words.
+
+The exact subtler historical banner referenced by the user was not identified in committed source. This treatment follows the requested visual direction rather than claiming an exact restoration.
+
+Verification: 89 unit tests, eight focused UI tests and ten release-configuration checks passed. UI coverage includes the full-width/top-edge profile scroll, raised identity, Settings target, largest accessibility text, Feed destinations, other-profile safety menu and completion-checklist save/hide behavior. Normal and accessibility screenshots were inspected on iPhone 17 Pro Latest. The first geometry-test attempts needed an accessible identity container and removal of an unavailable app-owned status-bar query; the final run passed. Staging validation was attempted but failed because the host disk filled while writing Xcode's build manifest. Temporary Staging build caches/products were removed to finish Debug validation. Staging was not revalidated, and no live backend or full UI-suite verification is claimed.
 
 ### Brand correction — October 28
 

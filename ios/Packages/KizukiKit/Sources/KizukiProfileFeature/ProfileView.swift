@@ -17,7 +17,20 @@ public struct ProfileView: View {
         let isMe = personID == store.me.id
         VStack(spacing: 0) {
             if let person = store.person(personID), isMe || !store.isBlocked(personID) {
-                PageScroll(spacing: 20) { content(person, isMe: isMe) }
+                GeometryReader { geometry in
+                    PageScroll(spacing: 0, horizontalPadding: 0, verticalPadding: 0) {
+                        cover(person, showsSettings: isMe && embedsInTab, topInset: geometry.safeAreaInsets.top)
+                        VStack(alignment: .leading, spacing: 20) {
+                            content(person, isMe: isMe)
+                        }
+                        .padding(.horizontal, KizukiTheme.pageInset)
+                        .padding(.top, -24)
+                        .padding(.bottom, KizukiTheme.pageInset)
+                    }
+                    .contentMargins(.top, 0, for: .scrollContent)
+                    .ignoresSafeArea(.container, edges: isMe && embedsInTab ? .top : [])
+                    .accessibilityIdentifier("profile-scroll")
+                }
                     .navigationTitle(isMe ? "" : person.name).navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         if !isMe {
@@ -42,21 +55,24 @@ public struct ProfileView: View {
         }
     }
 
-    @ViewBuilder private func content(_ person: Person, isMe: Bool) -> some View {
+    private func cover(_ person: Person, showsSettings: Bool, topInset: CGFloat) -> some View {
         KizukiPatternBackground(tint: coverAccent(person.id))
             .frame(height: 184)
             .background(KizukiTheme.darkGrey)
             .overlay { LinearGradient(colors: [.clear, KizukiTheme.charcoal], startPoint: .top, endPoint: .bottom) }
-            .padding(.horizontal, -20).padding(.top, -20).padding(.bottom, -44)
             .accessibilityHidden(true)
             .overlay(alignment: .topTrailing) {
-                if isMe && embedsInTab {
+                if showsSettings {
                     KizukiIconButton(symbol: "line.3.horizontal", label: "Settings") { router.push(.settings) }
                         .background(KizukiTheme.charcoal.opacity(0.88), in: RoundedRectangle(cornerRadius: 12))
                         .accessibilityHint("Opens your profile settings")
-                        .padding(.top, -8)
+                        .padding(.top, topInset + 8)
+                        .padding(.trailing, KizukiTheme.pageInset)
                 }
             }
+    }
+
+    @ViewBuilder private func content(_ person: Person, isMe: Bool) -> some View {
         let identityLayout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16)) : AnyLayout(HStackLayout(alignment: .center, spacing: 16))
         identityLayout {
             PersonAvatar(person.id, size: 92, portraitAsset: person.portraitAsset)
@@ -69,6 +85,8 @@ public struct ProfileView: View {
             }
             Spacer()
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("profile-identity")
         if isMe {
             OutlineButton("Edit profile") { router.sheet = .editProfile }
             if !store.isProfileComplete { GetDiscoveredCard() }
@@ -135,14 +153,16 @@ public struct ProfileView: View {
 struct GetDiscoveredCard: View {
     @Environment(AppStore.self) private var store
     @Environment(AppRouter.self) private var router
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         let steps = store.discoverySteps
         let done = store.discoveryDoneCount
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
+            let headingLayout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout())
+            headingLayout {
                 Text("Get discovered").font(KizukiTheme.title(26))
-                Spacer()
+                if !dynamicTypeSize.isAccessibilitySize { Spacer() }
                 Text("\(done) of \(steps.count)").font(KizukiTheme.mono(12)).foregroundStyle(KizukiTheme.charcoal)
                     .padding(.horizontal, 10).padding(.vertical, 4).background(KizukiTheme.yellow, in: Capsule())
             }

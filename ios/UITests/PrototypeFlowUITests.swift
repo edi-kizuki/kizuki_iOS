@@ -18,7 +18,8 @@ final class PrototypeFlowUITests: XCTestCase {
         let draft = app.buttons["feed-prompt-draft"]
         XCTAssertTrue(draft.waitForExistence(timeout: 8))
         XCTAssertFalse(app.staticTexts["Your next move"].exists)
-        XCTAssertLessThan(draft.frame.height, 100)
+        XCTAssertGreaterThanOrEqual(draft.frame.height, 44)
+        XCTAssertLessThanOrEqual(draft.frame.height, 48)
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Floating-feed-prompts"
         screenshot.lifetime = .keepAlways
@@ -256,8 +257,36 @@ final class PrototypeFlowUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(settings.frame.width, 44)
         XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
         XCTAssertFalse(button(app, "Messages").exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Flush-profile-accessibility"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
         settings.tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testProfileCoverReachesScreenEdges() {
+        let app = launch(["-fixtures", "-screen", "profile"])
+        let scroll = app.scrollViews["profile-scroll"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 8))
+        XCTAssertEqual(scroll.frame.minX, app.frame.minX, accuracy: 1)
+        XCTAssertEqual(scroll.frame.maxX, app.frame.maxX, accuracy: 1)
+        XCTAssertEqual(scroll.frame.minY, app.frame.minY, accuracy: 1)
+        let identity = app.otherElements["profile-identity"]
+        XCTAssertTrue(identity.exists)
+        XCTAssertEqual(identity.frame.minY, 160, accuracy: 2)
+        let settings = button(app, "Settings")
+        XCTAssertTrue(settings.isHittable)
+        XCTAssertGreaterThan(settings.frame.minY, scroll.frame.minY)
+        XCTAssertLessThanOrEqual(settings.frame.maxY, identity.frame.minY)
+        XCTAssertGreaterThanOrEqual(settings.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Flush-profile"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
     }
 
     @MainActor func testDebugDefaultAndTabBarAccessibilityScreenshots() {

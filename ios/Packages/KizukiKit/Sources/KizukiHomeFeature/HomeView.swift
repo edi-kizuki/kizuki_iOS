@@ -64,20 +64,22 @@ public struct HomeView: View {
     private func promptBanner(_ prompt: AppStore.FeedPrompt) -> some View {
         let content = promptContent(prompt)
         return Button { open(prompt) } label: {
-            HStack(spacing: 12) {
-                Image(systemName: content.symbol).font(.system(size: 18))
+            HStack(spacing: 10) {
+                Image(systemName: content.symbol).font(.system(size: 15))
+                    .foregroundStyle(KizukiTheme.blue)
                     .accessibilityHidden(true)
-                Text(content.title).font(KizukiTheme.bodyBold(19))
-                    .dynamicTypeSize(.large...)
+                Text(content.title).font(KizukiTheme.body(14))
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Image(systemName: "chevron.right").font(.system(size: 12, weight: .medium))
+                Image(systemName: "chevron.right").font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(KizukiTheme.charcoal.opacity(0.6))
                     .accessibilityHidden(true)
             }
             .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .padding(.horizontal, 16).padding(.vertical, 10)
+            .padding(.horizontal, 12)
             .foregroundStyle(KizukiTheme.charcoal)
-            .background(KizukiTheme.blue, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(KizukiTheme.blue.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("feed-prompt-\(prompt.id)")
