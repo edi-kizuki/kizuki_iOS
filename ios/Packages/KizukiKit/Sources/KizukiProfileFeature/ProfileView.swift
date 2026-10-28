@@ -107,24 +107,24 @@ public struct ProfileView: View {
         if person.acceptsCollaboration {
         let availability = isMe ? store.own.availability : person.availability
         VStack(alignment: .leading, spacing: 6) {
-            Label(isMe ? "I’m available to collab" : "\(person.firstName) is available to collab", systemImage: "battery.75percent").font(KizukiTheme.bodyMedium(14))
-            Text(availability.rawValue).font(KizukiTheme.monoMedium(12)).tracking(-0.36).foregroundStyle(KizukiTheme.babyBlueIcons)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                AvailabilityBattery(level: availability.level)
+                Text(isMe ? "I’m available to collab" : "\(person.firstName) is available to collab").font(KizukiTheme.bodyMedium(14))
+            }
+            Text("\(availability.levelLabel) · \(availability.hoursLabel)").font(KizukiTheme.monoMedium(12)).tracking(-0.36).foregroundStyle(KizukiTheme.cream)
             if isMe {
                 Text("\(store.own.workMode.rawValue) · \(store.own.compensation.rawValue)").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
                 Text("Everyone sees your availability. Only you see work mode and pay preference.").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading).kizukiPanel(edgeToEdge: true).padding(.horizontal, -20)
+        .frame(maxWidth: .infinity, alignment: .leading).kizukiFloatingCard(padding: KizukiTheme.cardInset)
+        .padding(.horizontal, KizukiTheme.floatingCardInset - KizukiTheme.pageInset)
         .accessibilityElement(children: .combine)
-        }
-        let favourites = isMe ? (store.own.showFavourites ? Array(store.own.favourites).sorted() : []) : person.favourites
-        if !favourites.isEmpty {
-            SectionTitle("Favourites")
-            FlowLayout(spacing: 8) { ForEach(favourites, id: \.self) { KizukiChip($0) } }
+        .accessibilityIdentifier("profile-availability")
         }
         if !person.visibleLinks.isEmpty {
             SectionTitle("Work")
-            ForEach(person.visibleLinks) { EmbedCard(link: $0, edgeToEdge: true).padding(.horizontal, -20) }
+            ForEach(person.visibleLinks) { EmbedCard(link: $0).padding(.horizontal, KizukiTheme.floatingCardInset - KizukiTheme.pageInset) }
         }
         let photos = store.visiblePhotos.filter { $0.authorID == person.id }
         SectionTitle("Collabs")
@@ -166,7 +166,7 @@ struct GetDiscoveredCard: View {
                 Text("\(done) of \(steps.count)").font(KizukiTheme.mono(12)).foregroundStyle(KizukiTheme.charcoal)
                     .padding(.horizontal, 10).padding(.vertical, 4).background(KizukiTheme.yellow, in: Capsule())
             }
-            Text("Finish your basics so people know who you are. Work links, favourites and collab posts are optional.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            Text("Finish your basics so people know who you are. Work links and collab posts are optional.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ProgressView(value: Double(done), total: Double(steps.count)).tint(KizukiTheme.orange).accessibilityHidden(true)
             ForEach(steps) { step in
                 Button { open(step) } label: {
@@ -193,10 +193,25 @@ struct GetDiscoveredCard: View {
     }
 }
 
+struct AvailabilityBattery: View {
+    let level: Availability.Level
+    var body: some View {
+        let (symbol, color): (String, Color) = switch level {
+        case .low: ("battery.25percent", KizukiTheme.availabilityLow)
+        case .medium: ("battery.50percent", KizukiTheme.availabilityMedium)
+        case .high: ("battery.100percent", KizukiTheme.availabilityHigh)
+        }
+        Image(systemName: symbol)
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(color, KizukiTheme.cream)
+            .font(.system(size: 18, weight: .medium))
+            .accessibilityHidden(true)
+    }
+}
+
 /// Validated portfolio destination; external links until consent-gated players are integrated.
 struct EmbedCard: View {
     let link: ProfileLink
-    var edgeToEdge = false
     var body: some View {
         let descriptor = PortfolioWidgetDescriptor(link: link)
         VStack(alignment: .leading, spacing: 0) {
@@ -209,10 +224,10 @@ struct EmbedCard: View {
             HStack {
                 ProviderIcon(link.kind.iconAsset)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(link.title).font(KizukiTheme.bodyMedium(14)).lineLimit(1)
+                    Text(link.title).font(KizukiTheme.bodyMedium(14)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     Text(descriptor.state == .invalid ? "Demo link · not connected" : "\(link.kind.rawValue) · opens externally").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons)
                     if let url = descriptor.externalURL {
-                        Link("Open on \(link.kind.rawValue)", destination: url).frame(minHeight: 44)
+                        Link(destination: url) { Text("Open on \(link.kind.rawValue)").frame(minHeight: 44, alignment: .leading).contentShape(Rectangle()) }
                     }
                     if descriptor.requiresPlaybackConsent {
                         Text("In-app playback is not connected yet. Nothing loads automatically.").font(KizukiTheme.body(12))
@@ -220,9 +235,11 @@ struct EmbedCard: View {
                 }
                 Spacer()
             }
-            .padding(12).background(KizukiTheme.grey)
+            .padding(KizukiTheme.cardInset).background(KizukiTheme.grey)
         }
-        .clipShape(RoundedRectangle(cornerRadius: edgeToEdge ? 0 : 10))
+        .kizukiFloatingCard(padding: 0, fill: KizukiTheme.grey)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("profile-work-\(link.kind.rawValue)")
     }
 }
 
@@ -280,7 +297,7 @@ public struct EditProfileView: View {
                 }
             }
             Text("Availability").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
-            ForEach(Availability.allCases, id: \.self) { a in ChoiceRow(a.rawValue, selected: availability == a) { availability = a } }
+            ForEach(Availability.allCases, id: \.self) { a in ChoiceRow(a.hoursLabel, selected: availability == a, detail: a.levelLabel) { availability = a } }
             Text("Compensation preference").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ForEach(Compensation.allCases, id: \.self) { c in ChoiceRow(c.rawValue, selected: compensation == c) { compensation = c } }
             }

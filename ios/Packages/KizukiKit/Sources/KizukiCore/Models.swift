@@ -152,6 +152,23 @@ public enum Compensation: String, CaseIterable, Sendable, Hashable, Codable {
 public enum WorkMode: String, CaseIterable, Sendable, Hashable, Codable { case local = "Local", remote = "Remote", both = "Both" }
 public enum Availability: String, CaseIterable, Sendable, Hashable, Codable {
     case low = "Under 5 hours / week", mid = "5–10 hours / week", high = "10+ hours / week"
+
+    public enum Level: String, Sendable, Hashable, CaseIterable { case low = "Low", medium = "Medium", high = "High" }
+    public var level: Level {
+        switch self {
+        case .low: .low
+        case .mid: .medium
+        case .high: .high
+        }
+    }
+    public var hoursLabel: String {
+        switch self {
+        case .low: "Under 5 hours / week"
+        case .mid: "5–9 hours / week"
+        case .high: "10+ hours / week"
+        }
+    }
+    public var levelLabel: String { "\(level.rawValue) availability" }
 }
 
 /// The signed-in creator: public profile fields plus private onboarding answers.
@@ -165,8 +182,8 @@ public struct OwnProfile: Sendable, Equatable, Codable {
     public var workMode: WorkMode = .both
     public var tasteCards: Set<Int> = [0, 2]
     public var favourites: Set<String> = []
-    public var showFavourites = true
-    public var useFavouritesForMatching = true
+    public var showFavourites = false
+    public var useFavouritesForMatching = false
     public var useTasteForMatching = true
     public init(person: Person) { self.person = person }
 }

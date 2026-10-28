@@ -41,12 +41,13 @@ This changes future commit attribution, not historical commits, repository owner
 
 Astra and Fable 5.1 alternate implementation and independent QA. One authors each substantive change; the other challenges its assumptions, reviews the actual diff, and validates relevant behavior. After the change clears QA, they swap roles for the next change. The author fixes findings; the other model re-checks the final code revision. Neither self-approves. Follow [[AGENTS]] for review evidence, quality criteria and escalation rules.
 
-Initial assignment, October 28, 2026:
+Assignments, October 28, 2026:
 
 | Scope | Coding | Independent review / QA |
 | --- | --- | --- |
-| Existing PR #8 | Astra | Fable 5.1, pending |
-| Next substantive change after that review | Fable 5.1 | Astra |
+| PR #8 branding and flush profile at `528c53e` | Astra | Fable 5.1: no blocking findings; required CI not passed |
+| PR #8 weekly availability, floating profile cards and favourites removal | Fable 5.1 | Astra: independent local checks complete; final SHA and CI recorded in PR |
+| Next substantive change | Astra | Fable 5.1 |
 
 Record subsequent assignments and reviewed SHAs in PRs/handoffs. This is an agent operating policy, not a server-enforced GitHub approval gate. Required CI must also pass; two-model agreement is not certification of production readiness. Agents receive explicit briefs and exchange results through handoffs and repository files, not automatic shared conversation memory. Claude's connected Notion work remains separate. Do not silently substitute another provider or model.
 

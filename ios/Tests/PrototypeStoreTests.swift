@@ -322,6 +322,67 @@ struct PrototypeStoreTests {
         #expect(store.me.availability == store.own.availability)
     }
 
+    @Test func availabilityBucketsAreDistinctAndKeepStoredValues() throws {
+        #expect(Availability.low.level == .low)
+        #expect(Availability.mid.level == .medium)
+        #expect(Availability.high.level == .high)
+        #expect(Set(Availability.allCases.map(\.hoursLabel)).count == Availability.allCases.count)
+        #expect(Set(Availability.allCases.map(\.levelLabel)).count == Availability.allCases.count)
+        #expect(Availability.low.hoursLabel == "Under 5 hours / week")
+        #expect(Availability.mid.hoursLabel == "5–9 hours / week")
+        #expect(Availability.high.hoursLabel == "10+ hours / week")
+        #expect(Availability.low.levelLabel == "Low availability")
+        #expect(Availability.mid.levelLabel == "Medium availability")
+        #expect(Availability.high.levelLabel == "High availability")
+        for (stored, expected) in [("Under 5 hours / week", Availability.low), ("5–10 hours / week", .mid), ("10+ hours / week", .high)] {
+            #expect(try JSONDecoder().decode(Availability.self, from: JSONEncoder().encode(stored)) == expected)
+            #expect(try JSONDecoder().decode(String.self, from: JSONEncoder().encode(expected)) == stored)
+        }
+    }
+
+    @Test func availabilityEditsSaveAndReloadForEveryBucket() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("profile.json")
+        let store = AppStore(dependencies: FixtureBackend.dependencies(storageURL: url))
+        await store.load()
+        for availability in Availability.allCases {
+            #expect(await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: store.me.roles, availability: availability, compensation: store.own.compensation))
+            #expect(store.own.availability == availability)
+            #expect(store.me.availability == availability)
+            let reopened = AppStore(dependencies: FixtureBackend.dependencies(storageURL: url))
+            await reopened.load()
+            #expect(reopened.own.availability == availability)
+            #expect(reopened.me.availability == availability)
+            #expect(reopened.me.availability.level == availability.level)
+        }
+    }
+
+    @Test func legacyFavouritesStillLoadButNeverShapeSuggestions() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("profile.json")
+        let backend = FixtureBackend(storageURL: url)
+        var profile = await backend.own()
+        profile.favourites = ["Perfect Days", "Nala Sinephro"]
+        profile.person.favourites = ["Perfect Days"]
+        profile.showFavourites = true
+        profile.useFavouritesForMatching = true
+        try await backend.save(profile)
+        let reopened = FixtureBackend(storageURL: url)
+        #expect(await reopened.own() == profile)
+        let people = await reopened.recommendedPeople()
+        #expect(!people.isEmpty)
+        #expect(!people.contains { $0.reasons.contains { $0.localizedCaseInsensitiveContains("favourite") } })
+        #expect(!(await reopened.recommendedProjects()).contains { $0.reasons.contains { $0.localizedCaseInsensitiveContains("favourite") } })
+        #expect(FixtureData.people.allSatisfy { $0.favourites.isEmpty })
+        #expect(FixtureData.ownProfile.favourites.isEmpty)
+        #expect(!FixtureData.ownProfile.showFavourites && !FixtureData.ownProfile.useFavouritesForMatching)
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let script = try String(contentsOf: repo.appendingPathComponent("scripts/screenshot-gallery.sh"), encoding: .utf8)
+        #expect(!script.contains("onb-favourites"))
+    }
+
     @Test func searchContentIsPhotosAndShortVideosOnly() async {
         let store = await loadedStore()
         let videos = store.photos.filter(\.isVideo)

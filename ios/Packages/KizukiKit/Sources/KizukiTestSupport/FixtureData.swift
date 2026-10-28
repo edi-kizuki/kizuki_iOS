@@ -28,8 +28,6 @@ public enum FixtureData {
         "Chasing quiet moments and unexpected textures. Let's make something with feeling.",
         "Independent, curious, happiest in a room full of people making things.",
         "A practice somewhere between analogue memories and new possibilities."]
-    static let favouriteFilms = ["Perfect Days", "Aftersun", "Paris, Texas", "Moonlight"]
-    static let favouriteMusic = ["Nala Sinephro", "Tirzah", "Khruangbin", "Bicep"]
 
     static func links(_ i: Int) -> [ProfileLink] {
         let h = names[i].lowercased().replacingOccurrences(of: " ", with: ".")
@@ -59,8 +57,7 @@ public enum FixtureData {
         // The signed-in user (index 0) starts without a bio, so the "Get discovered" card has something to ask for.
         var person = Person(id: personID(i), name: name, handle: name.lowercased().replacingOccurrences(of: " ", with: "."),
                realm: realms[i], roles: roles[i], city: i == 17 ? "Potsdam, DE" : "Berlin, DE", bio: i == 0 ? "" : bios[i % bios.count],
-               links: links(i), favourites: i % 2 == 0 ? [favouriteFilms[i % 4], favouriteMusic[(i + 1) % 4]] : [],
-               availability: Availability.allCases[(i + 1) % 3])
+               links: links(i), availability: Availability.allCases[(i + 1) % 3])
         if i == 1 { person.portraitAsset = "StockPortraitTwo" }
         if i == 2 { person.portraitAsset = "StockPortraitOne" }
         return person
@@ -96,22 +93,22 @@ public enum FixtureData {
 
     public static let requests: [CollabRequest] = [
         // Incoming
-        r(0, 4, 2, .incoming, .pending, "Sound designer", "5–10 hours / week", "Your blue-hour idea stayed with me. I’d love to build its sound world from recordings around Hermannplatz."),
+        r(0, 4, 2, .incoming, .pending, "Sound designer", "5–9 hours / week", "Your blue-hour idea stayed with me. I’d love to build its sound world from recordings around Hermannplatz."),
         r(1, 5, 2, .incoming, .pending, "Photographer", "Under 5 hours / week", "Could help with stills and a little behind-the-scenes story."),
-        r(2, 3, 2, .incoming, .accepted, "Illustrator", "5–10 hours / week", "Let’s make it happen."),
+        r(2, 3, 2, .incoming, .accepted, "Illustrator", "5–9 hours / week", "Let’s make it happen."),
         r(3, 10, 2, .incoming, .declined, "Colourist", "Under 5 hours / week", "Happy to grade whatever you shoot."),
         r(4, 11, 2, .incoming, .withdrawn, "Printmaker", "10+ hours / week", "Timing changed on my side."),
         r(5, 9, 2, .incoming, .expired, "Documentary maker", "Under 5 hours / week", "Could we make a moving poster?"),
         // Outgoing
-        r(6, 3, 5, .outgoing, .pending, "Art director", "5–10 hours / week", "I’d love to help find the rhythm of this story."),
-        r(7, 2, 4, .outgoing, .accepted, "Producer", "5–10 hours / week", "Let’s try a session."),
-        r(8, 1, 3, .outgoing, .accepted, "Director", "5–10 hours / week", "Happy to join as a second pair of eyes."),
+        r(6, 3, 5, .outgoing, .pending, "Art director", "5–9 hours / week", "I’d love to help find the rhythm of this story."),
+        r(7, 2, 4, .outgoing, .accepted, "Producer", "5–9 hours / week", "Let’s try a session."),
+        r(8, 1, 3, .outgoing, .accepted, "Director", "5–9 hours / week", "Happy to join as a second pair of eyes."),
         r(9, 4, 6, .outgoing, .declined, "Composer", "Under 5 hours / week", "A small musical experiment?"),
         r(10, 5, 7, .outgoing, .withdrawn, "Writer", "10+ hours / week", "Timing changed on my side."),
-        r(11, 6, 8, .outgoing, .expired, "Editor", "5–10 hours / week", "Would love to cut this one."),
+        r(11, 6, 8, .outgoing, .expired, "Editor", "5–9 hours / week", "Would love to cut this one."),
         // Wish to Collab: requests made from a profile, with no project (decision 52).
         r(12, 7, nil, .incoming, .pending, "Illustrator", "Under 5 hours / week", "No project yet. I love your colour work and would like to make something small together."),
-        r(13, 12, nil, .outgoing, .pending, "Director", "5–10 hours / week", "Your sculpture work stayed with me. Could we make something small together?")]
+        r(13, 12, nil, .outgoing, .pending, "Director", "5–9 hours / week", "Your sculpture work stayed with me. Could we make something small together?")]
 
     private static func r(_ n: Int, _ person: Int, _ project: Int?, _ d: RequestDirection, _ s: RequestState, _ role: String, _ time: String, _ note: String) -> CollabRequest {
         CollabRequest(id: requestID(n), personID: personID(person), projectID: project.map(projectID), direction: d, state: s, role: role, timeCommitment: time, note: note)
@@ -140,10 +137,6 @@ public enum FixtureData {
                     tags: tagSets[i % tagSets.count], artSeed: i, videoSeconds: i % 3 == 1 ? videoSeconds[(i / 3) % videoSeconds.count] : nil)
     }
 
-    public static let ownProfile: OwnProfile = {
-        var own = OwnProfile(person: people[0])
-        own.favourites = ["Perfect Days", "Nala Sinephro"]
-        return own
-    }()
+    public static let ownProfile = OwnProfile(person: people[0])
 }
 #endif

@@ -89,9 +89,7 @@ public struct SettingsPageView: View {
 
     @ViewBuilder private var privacy: some View {
         Text("Matching").font(KizukiTheme.title(22))
-        Toggle("Use favourites for recommendations", isOn: Binding(get: { store.own.useFavouritesForMatching }, set: { v in store.updateOwn { $0.useFavouritesForMatching = v } }))
         Toggle("Use taste for recommendations", isOn: Binding(get: { store.own.useTasteForMatching }, set: { v in store.updateOwn { $0.useTasteForMatching = v } }))
-        Toggle("Show favourites on my profile", isOn: Binding(get: { store.own.showFavourites }, set: { v in store.updateOwn { $0.showFavourites = v } }))
         Text("Blocked accounts").font(KizukiTheme.title(22)).padding(.top, 8)
         if store.blockedPeople.isEmpty { Text("You haven’t blocked anyone.").font(KizukiTheme.body(13)).foregroundStyle(KizukiTheme.babyBlueIcons) }
         ForEach(store.blockedPeople) { person in

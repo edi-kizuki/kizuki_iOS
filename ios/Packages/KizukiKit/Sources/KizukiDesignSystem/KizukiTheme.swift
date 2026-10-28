@@ -15,6 +15,10 @@ public enum KizukiTheme {
     public static let salmon = Color(hex: 0xFAC5B8)
     public static let ink = Color(hex: 0x371F1D)
 
+    public static let availabilityHigh = Color(hex: 0x30D158)
+    public static let availabilityMedium = yellow
+    public static let availabilityLow = Color(hex: 0xFF453A)
+
     // Names kept from the foundation build.
     public static let canvas = charcoal
     public static let surface = darkGrey

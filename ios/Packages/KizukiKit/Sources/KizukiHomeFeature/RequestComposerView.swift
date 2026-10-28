@@ -48,11 +48,11 @@ public struct RequestComposerView: View {
                     Button { role = r } label: { KizukiChip(r, selected: role == r).frame(minHeight: 44) }.buttonStyle(.plain)
                 } }
                 Text("Time investment").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
-                ForEach(Availability.allCases, id: \.self) { a in ChoiceRow(a.rawValue, selected: time == a) { time = a } }
+                ForEach(Availability.allCases, id: \.self) { a in ChoiceRow(a.hoursLabel, selected: time == a) { time = a } }
                 KizukiTextArea("Note", text: $note)
                 PrimaryButton("Send request", color: KizukiTheme.yellow, textColor: KizukiTheme.charcoal) {
                     let request = NewRequest(personID: personID, projectID: projectID, role: role.isEmpty ? (roleOptions.first ?? "Collaborator") : role,
-                                             timeCommitment: time.rawValue, note: note)
+                                             timeCommitment: time.hoursLabel, note: note)
                     Task { await store.sendRequest(request); sent = true }
                 }
             }

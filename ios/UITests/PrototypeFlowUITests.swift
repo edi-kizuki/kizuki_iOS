@@ -205,7 +205,7 @@ final class PrototypeFlowUITests: XCTestCase {
         button(app, "Continue").tap()
         XCTAssertTrue(app.staticTexts["WHAT CATCHES YOUR EYE?"].exists)
         button(app, "Continue").tap()
-        button(app, "Continue").tap()
+        XCTAssertFalse(app.staticTexts["YOUR FAVOURITES, YOUR WORLD"].exists)
         XCTAssertTrue(app.staticTexts["WHERE DO YOU CREATE?"].exists)
         XCTAssertFalse(app.staticTexts["How do you want to work?"].exists)
         button(app, "Continue").tap()
@@ -397,6 +397,121 @@ final class PrototypeFlowUITests: XCTestCase {
         XCTAssertTrue(button(app, "Send request").waitForExistence(timeout: 5))
         button(app, "Send request").tap()
         XCTAssertTrue(app.staticTexts["Wish sent"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testProfileAvailabilityBatteryAndFloatingWidgetsAtNormalAndLargestText() {
+        for size in ["UICTContentSizeCategoryL", "UICTContentSizeCategoryAccessibilityXXXL"] {
+            let app = launch(["-fixtures", "-screen", "profile-other", "-UIPreferredContentSizeCategoryName", size])
+            let availability = app.descendants(matching: .any)["profile-availability"]
+            XCTAssertTrue(availability.waitForExistence(timeout: 8))
+            XCTAssertTrue(availability.label.contains("Sami is available to collab"), availability.label)
+            XCTAssertTrue(availability.label.contains("Low availability"), availability.label)
+            XCTAssertTrue(availability.label.contains("Under 5 hours / week"), availability.label)
+            XCTAssertFalse(availability.label.contains("Only you see"), availability.label)
+            XCTAssertGreaterThanOrEqual(availability.frame.minX, 10)
+            XCTAssertLessThanOrEqual(availability.frame.maxX, app.frame.maxX - 10)
+            XCTAssertFalse(app.staticTexts["Favourites"].exists)
+            let work = app.descendants(matching: .any)["profile-work-SoundCloud"]
+            let scroll = app.scrollViews["profile-scroll"]
+            for _ in 0..<12 where !(work.exists && work.isHittable && work.frame.maxY < app.frame.maxY - 60) {
+                scroll.swipeUp()
+            }
+            XCTAssertTrue(work.exists)
+            XCTAssertGreaterThanOrEqual(work.frame.minX, 10)
+            XCTAssertLessThanOrEqual(work.frame.maxX, app.frame.maxX - 10)
+            XCTAssertTrue(app.staticTexts["Demo link · not connected"].firstMatch.exists)
+            XCTAssertFalse(app.staticTexts["Favourites"].exists)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Profile-availability-widgets-\(size)"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            app.terminate()
+        }
+    }
+
+    @MainActor func testOwnProfileBatteryFollowsSavedAvailabilityAndLinkActionFloats() {
+        let app = launch(["-fixtures", "-screen", "profile"])
+        let availability = app.descendants(matching: .any)["profile-availability"]
+        XCTAssertTrue(availability.waitForExistence(timeout: 8))
+        XCTAssertTrue(availability.label.contains("I’m available to collab"), availability.label)
+        XCTAssertTrue(availability.label.contains("Medium availability"), availability.label)
+        XCTAssertTrue(availability.label.contains("5–9 hours / week"), availability.label)
+        XCTAssertTrue(availability.label.contains("Only you see work mode and pay preference"), availability.label)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS '5–10 hours'")).firstMatch.exists)
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
+        func reveal(_ element: XCUIElement) {
+            for _ in 0..<35 {
+                let top = app.navigationBars["Edit profile"].frame.maxY + 12
+                let bottom = button(app, "Save").frame.minY - 20
+                if element.isHittable && element.frame.minY > top && element.frame.maxY < bottom { return }
+                let reverse = element.exists && element.frame.height > 0 && element.frame.minY < top
+                let upper = top + (bottom - top) * 0.25
+                let lower = top + (bottom - top) * 0.75
+                let origin = app.coordinate(withNormalizedOffset: .zero)
+                origin.withOffset(CGVector(dx: app.frame.midX, dy: reverse ? upper : lower))
+                    .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: app.frame.midX, dy: reverse ? lower : upper)))
+            }
+            XCTFail("Edit control not reachable: \(element.debugDescription)")
+        }
+        let high = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "10+ hours / week")).firstMatch
+        reveal(high)
+        high.tap()
+        XCTAssertTrue(high.isSelected)
+        let connect = button(app, "Connect SoundCloud")
+        reveal(connect)
+        connect.tap()
+        let field = app.textFields["SoundCloud"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("soundcloud.com/artist/track")
+        button(app, "Use link").tap()
+        XCTAssertTrue(app.navigationBars["SoundCloud"].waitForNonExistence(timeout: 5))
+        button(app, "Save").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(availability.waitForExistence(timeout: 5))
+        XCTAssertTrue(availability.label.contains("High availability"), availability.label)
+        XCTAssertTrue(availability.label.contains("10+ hours / week"), availability.label)
+        let work = app.descendants(matching: .any)["profile-work-SoundCloud"]
+        let scroll = app.scrollViews["profile-scroll"]
+        for _ in 0..<12 where !(work.exists && work.isHittable && work.frame.maxY < app.frame.maxY - 60) {
+            scroll.swipeUp()
+        }
+        XCTAssertTrue(work.exists)
+        XCTAssertGreaterThanOrEqual(work.frame.minX, 10)
+        XCTAssertLessThanOrEqual(work.frame.maxX, app.frame.maxX - 10)
+        let open = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Open on SoundCloud'")).firstMatch
+        XCTAssertTrue(open.exists)
+        XCTAssertTrue(open.isHittable)
+        XCTAssertGreaterThanOrEqual(open.frame.height, 44)
+        XCTAssertGreaterThanOrEqual(open.frame.minX, work.frame.minX)
+        XCTAssertLessThanOrEqual(open.frame.maxX, work.frame.maxX)
+        XCTAssertTrue(app.staticTexts["SoundCloud · opens externally"].exists)
+        XCTAssertFalse(app.staticTexts["Favourites"].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Profile-own-high-availability-link"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    @MainActor func testFavouritesSurfacesAreGone() {
+        var app = launch(["-fixtures", "-screen", "settings-privacy"])
+        XCTAssertTrue(app.switches["Use taste for recommendations"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.switches["Use favourites for recommendations"].exists)
+        XCTAssertFalse(app.switches["Show favourites on my profile"].exists)
+        app.terminate()
+        app = launch(["-fixtures", "-screen", "onb-taste"])
+        XCTAssertTrue(app.staticTexts["WHAT CATCHES YOUR EYE?"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["5 / 10"].exists)
+        button(app, "Continue").tap()
+        XCTAssertFalse(app.staticTexts["YOUR FAVOURITES, YOUR WORLD"].exists)
+        XCTAssertFalse(app.textFields["Search films and music"].exists)
+        XCTAssertTrue(app.staticTexts["WHAT KIND OF WORK?"].exists)
+        XCTAssertTrue(app.staticTexts["6 / 10"].exists)
+        button(app, "Continue").tap()
+        XCTAssertTrue(app.staticTexts["HOW MUCH TIME DO YOU HAVE?"].exists)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "5–9 hours / week")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS '5–10 hours'")).firstMatch.exists)
     }
 
     @MainActor func testProjectOffersJoinProject() {

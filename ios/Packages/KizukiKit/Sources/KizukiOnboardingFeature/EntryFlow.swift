@@ -16,9 +16,9 @@ public enum EntryScreen: Hashable, Sendable {
 }
 
 public enum OnboardingStep: Int, CaseIterable, Sendable {
-    case handle, goal, realm, roles, taste, favourites, compensation, availability, city, notifications, location
+    case handle, goal, realm, roles, taste, compensation, availability, city, notifications, location
     public var id: String {
-        ["handle", "goal", "realm", "roles", "taste", "favourites", "compensation", "availability", "city", "primer-notifications", "primer-location"][rawValue]
+        ["handle", "goal", "realm", "roles", "taste", "compensation", "availability", "city", "primer-notifications", "primer-location"][rawValue]
     }
     public static func steps(for goal: Goal) -> [Self] {
         allCases.filter { goal == .collaborate || ![Self.roles, .compensation, .availability].contains($0) }
@@ -53,7 +53,6 @@ public struct EntryFlow: View {
     @State private var password = "prototype"
     @State private var ageAndTerms = false
     @State private var showTerms = false
-    @State private var search = ""
     @State private var saving = false
     @State private var saveFailed = false
     let onFinish: (OwnProfile) async -> Bool
@@ -67,7 +66,7 @@ public struct EntryFlow: View {
     }
 
     private let titles = ["What should we call you?", "What are you looking to do?", "Find your creative realm", "What’s your role?",
-                          "What catches your eye?", "Your favourites, your world", "What kind of work?", "How much time do you have?",
+                          "What catches your eye?", "What kind of work?", "How much time do you have?",
                           "Where do you create?", "Stay in the loop", "Find your nearby people"]
     private var steps: [OnboardingStep] { OnboardingStep.steps(for: draft.goal) }
 
@@ -367,18 +366,12 @@ public struct EntryFlow: View {
                 }
             }
             Toggle("Use taste to shape recommendations", isOn: $draft.useTasteForMatching).font(KizukiTheme.body(14)).tint(KizukiTheme.orange)
-        case .favourites:
-            KizukiSearchField("Search films and music", text: $search)
-            Text("Films").font(KizukiTheme.title(24)); favouriteRows(Self.films)
-            Text("Music").font(KizukiTheme.title(24)); favouriteRows(Self.music)
-            Toggle("Show on my profile", isOn: $draft.showFavourites).font(KizukiTheme.body(14)).tint(KizukiTheme.orange)
-            Toggle("Use for recommendations", isOn: $draft.useFavouritesForMatching).font(KizukiTheme.body(14)).tint(KizukiTheme.orange)
         case .compensation:
             lead("A label that helps you find the right projects. No payments happen in Kizuki.")
             ForEach(Compensation.allCases, id: \.self) { c in ChoiceRow(c.rawValue, selected: draft.compensation == c) { draft.compensation = c } }
         case .availability:
             lead(OnboardingCopy.availability)
-            ForEach(Availability.allCases, id: \.self) { a in ChoiceRow(a.rawValue, selected: draft.availability == a) { draft.availability = a } }
+            ForEach(Availability.allCases, id: \.self) { a in ChoiceRow(a.hoursLabel, selected: draft.availability == a, detail: a.levelLabel) { draft.availability = a } }
         case .city:
             KizukiField("City (shown on your profile)", text: bind(\.person.city))
             if draft.goal == .collaborate {
@@ -464,19 +457,6 @@ public struct EntryFlow: View {
         draft.person.roles = RoleSelection.toggling(role, in: draft.person.roles, realm: draft.person.realm)
     }
 
-    static let films = ["Perfect Days", "Aftersun", "Paris, Texas", "Moonlight", "Portrait of a Lady on Fire", "Wings of Desire"]
-    static let music = ["Nala Sinephro", "Tirzah", "Khruangbin", "Bicep", "Moderat", "Anika"]
-
-    private func favouriteRows(_ names: [String]) -> some View {
-        ForEach(names.filter { search.isEmpty || $0.localizedCaseInsensitiveContains(search) }, id: \.self) { name in
-            let on = draft.favourites.contains(name)
-            Button { if on { draft.favourites.remove(name) } else { draft.favourites.insert(name) } } label: {
-                HStack { Image(systemName: on ? "checkmark.square.fill" : "square").foregroundStyle(KizukiTheme.orange); Text(name); Spacer() }
-                    .frame(minHeight: 44).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain).accessibilityAddTraits(on ? .isSelected : [])
-        }
-    }
 }
 
 /// Avatars on the closing screen only need stable ids; they carry no data.
