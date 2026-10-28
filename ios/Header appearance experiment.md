@@ -13,7 +13,15 @@ The user superseded the experiment after PRs #5 and #6 merged:
 - The Minimal/Symbols preference is removed. Existing stored preference values are ignored.
 - Contextual chat actions inside Crew and profile content are preserved; these are not the global inbox shortcut.
 
-This applies to the Debug/local tab-root UI. Detail navigation and edit-form spacing are retained. No newly extracted artwork from the referenced raster sheet is included.
+This applies to the Debug/local tab-root UI. Detail navigation and edit-form spacing are retained.
+
+### Crew artwork and cards
+
+The Your Crew header now uses the actual Medusa from Kizuki App (Copy) / Drawings / “WhatsApp Image 2026-10-12 at 15.59.18 1”, file `nPqXTMCtd3OVZTSU7Y2uN3`, node `1609:387`. `CrewMedusa.png` is cropped from the original 1280 × 896 source at `(1060, 395, 1250, 520)`. Its black background becomes transparency using luminance as alpha. The drawing is not redrawn or vector-traced. The 190 × 125 raster is rendered proportionally in an 88 × 58 point slot, in cream. The source resolution limits sharpness at 3× display scale. Other Suki empty-state artwork is unchanged.
+
+Crew cards form a full-width surface with inset separators, rather than individually outlined boxes. They use larger avatars, the shared bold body type, the existing outlined profile button, a contextual chat button and an unframed overflow menu. Chat and overflow targets remain 44 × 44 points. Names and roles wrap with Dynamic Type. Profile, chat and remove-confirmation behavior is unchanged.
+
+Crew follow-up verification: regenerated the Xcode project so the Crew unit-test file is included. All 85 unit tests passed, including Medusa asset dimensions/transparency and long-name/Dynamic Type sizing. Two focused UI tests passed for default/accessibility-XL action layout, opening chat, and removal confirmation. Both screenshot sizes were visually inspected. Ten configuration checks and the Staging build/artifact check also passed. These results remain local validation, not live release verification.
 
 Follow-up verification: 83 unit tests and six targeted UI tests passed. Coverage includes Feed inbox navigation, Profile-only Settings placement, largest accessibility text, all five tabs, Crew chat actions, profile report/block controls, and the completion-card edit action. Ten release-configuration checks and the Staging build/artifact check passed. All five tab roots were visually inspected on iPhone 17 Pro Latest. These results do not establish live backend behavior or production release readiness.
 

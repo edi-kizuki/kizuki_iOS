@@ -38,9 +38,10 @@ public struct SukiView: View {
     // MARK: Crew
 
     @ViewBuilder private var crew: some View {
-        // Suki greets you above the Crew. Decorative, so VoiceOver skips it.
-        HStack(alignment: .bottom, spacing: 14) {
-            if !store.crew.isEmpty { SukiMascotView(height: 64) }
+        HStack(alignment: .center, spacing: 14) {
+            KizukiIllustration.crewMedusa.image.resizable().scaledToFit()
+                .frame(width: 88, height: 58)
+                .foregroundStyle(KizukiTheme.cream).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 SectionTitle("Your Crew")
                 Text("People you’re building something with.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
@@ -52,12 +53,19 @@ public struct SukiView: View {
             SukiEmptyState(title: "Your Crew starts with a yes", message: "Accepted requests land here, with a chat.")
                 .padding(.horizontal, KizukiTheme.pageInset)
         }
-        ForEach(store.crew) { person in
-            CrewCard(person: person,
-                     onMessage: { router.push(.conversation(person.id)) },
-                     onProfile: { router.push(.profile(person.id)) },
-                     onRemove: { removing = person })
+        VStack(spacing: 0) {
+            ForEach(store.crew) { person in
+                CrewCard(person: person,
+                         onMessage: { router.push(.conversation(person.id)) },
+                         onProfile: { router.push(.profile(person.id)) },
+                         onRemove: { removing = person })
+                if person.id != store.crew.last?.id {
+                    Rectangle().fill(KizukiTheme.border).frame(height: 0.5)
+                        .padding(.horizontal, KizukiTheme.pageInset)
+                }
+            }
         }
+        .background(KizukiTheme.surface)
     }
 
     // MARK: Requests
@@ -156,15 +164,14 @@ struct CrewCard: View {
     let onRemove: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 16) {
             Button(action: onMessage) {
-                // Unlike PersonRow, Crew identity has no trailing glyph or subtitle line limit.
-                HStack(spacing: 14) {
-                    PersonAvatar(person.id, size: 48, portraitAsset: person.portraitAsset)
+                HStack(spacing: 16) {
+                    PersonAvatar(person.id, size: 64, portraitAsset: person.portraitAsset)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(person.name).font(KizukiTheme.bodyMedium(17))
-                        Text("\(person.primaryRole) · Say hello")
-                            .font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons)
+                        Text(person.name).font(KizukiTheme.bodyBold(20))
+                        Text(person.primaryRole)
+                            .font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
                     }
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -175,18 +182,17 @@ struct CrewCard: View {
             .buttonStyle(.plain)
             .accessibilityHint("Opens chat")
             HStack(alignment: .center, spacing: 8) {
-                Button("View profile", action: onProfile)
-                    .font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
-                    .fixedSize(horizontal: false, vertical: true).frame(minHeight: 44)
+                OutlineButton("View profile", action: onProfile)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel("View profile for \(person.name)")
-                Spacer(minLength: 0)
                 HStack(alignment: .center, spacing: 8) {
                     KizukiIconButton(icon: .messages, label: "Message \(person.name)", action: onMessage)
+                        .background(KizukiTheme.blue.opacity(0.16), in: Circle())
                         .accessibilityShowsLargeContentViewer()
                     Menu {
                         Button("Remove from Crew", systemImage: "person.badge.minus", role: .destructive, action: onRemove)
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Image(systemName: "ellipsis")
                             .font(.system(size: 24))
                             .frame(width: 44, height: 44).contentShape(Rectangle())
                     }
@@ -198,7 +204,9 @@ struct CrewCard: View {
             }
             .buttonStyle(.plain)
         }
-        .kizukiPanel(edgeToEdge: true)
+        .padding(KizukiTheme.pageInset)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(KizukiTheme.surface)
     }
 }
 
