@@ -36,7 +36,7 @@ public struct RequestComposerView: View {
             } else {
                 if let person {
                     HStack(spacing: 12) {
-                        PersonAvatar(person.id, size: 48, portraitAsset: person.portraitAsset)
+                        PersonAvatar(person.id, size: 48, portraitAsset: person.portraitAsset, portraitData: person.portraitData)
                         VStack(alignment: .leading) {
                             Text(projectID.flatMap { store.project($0)?.title } ?? "Wish to Collab with \(person.firstName)").font(KizukiTheme.title(24))
                             Text(projectID == nil ? "To \(person.name) · no project needed" : "Join project · to \(person.name)").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)

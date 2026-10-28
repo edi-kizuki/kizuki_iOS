@@ -39,7 +39,7 @@ public struct HomeView: View {
                             ForEach(store.visiblePeopleRecommendations.prefix(9), id: \.item.id) { rec in
                                 Button { router.push(.profile(rec.item.id)) } label: {
                                     VStack(spacing: 6) {
-                                        PersonAvatar(rec.item.id, size: 72, portraitAsset: rec.item.portraitAsset)
+                                        PersonAvatar(rec.item.id, size: 72, portraitAsset: rec.item.portraitAsset, portraitData: rec.item.portraitData)
                                         Text(rec.item.name).font(KizukiTheme.bodyMedium(13)).multilineTextAlignment(.center)
                                         Text(rec.item.primaryRole).font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons).multilineTextAlignment(.center)
                                         ReasonChips(Array(rec.reasons.prefix(1)))

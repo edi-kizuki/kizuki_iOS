@@ -132,10 +132,13 @@ public struct PersonAvatar: View {
     let id: UUID
     var size: CGFloat
     var portraitAsset: String?
-    public init(_ id: UUID, size: CGFloat = 56, portraitAsset: String? = nil) { self.id = id; self.size = size; self.portraitAsset = portraitAsset }
+    var portraitData: Data?
+    public init(_ id: UUID, size: CGFloat = 56, portraitAsset: String? = nil, portraitData: Data? = nil) { self.id = id; self.size = size; self.portraitAsset = portraitAsset; self.portraitData = portraitData }
     public var body: some View {
         Group {
-            if let portraitAsset, UIImage(named: portraitAsset, in: .module, compatibleWith: nil) != nil {
+            if let portraitData, let image = UIImage(data: portraitData) {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else if let portraitAsset, UIImage(named: portraitAsset, in: .module, compatibleWith: nil) != nil {
                 Image(portraitAsset, bundle: .module).resizable().scaledToFill()
             } else {
                 ProfileAvatar(profileID: id)
@@ -248,12 +251,13 @@ public struct PersonRow: View {
     let id: UUID, name: String, subtitle: String
     var trailing: String
     var portraitAsset: String?
-    public init(id: UUID, name: String, subtitle: String, trailing: String = "chevron.right", portraitAsset: String? = nil) {
-        self.id = id; self.name = name; self.subtitle = subtitle; self.trailing = trailing; self.portraitAsset = portraitAsset
+    var portraitData: Data?
+    public init(id: UUID, name: String, subtitle: String, trailing: String = "chevron.right", portraitAsset: String? = nil, portraitData: Data? = nil) {
+        self.id = id; self.name = name; self.subtitle = subtitle; self.trailing = trailing; self.portraitAsset = portraitAsset; self.portraitData = portraitData
     }
     public var body: some View {
         HStack(spacing: 14) {
-            PersonAvatar(id, size: 48, portraitAsset: portraitAsset)
+            PersonAvatar(id, size: 48, portraitAsset: portraitAsset, portraitData: portraitData)
             VStack(alignment: .leading, spacing: 4) {
                 Text(name).font(KizukiTheme.bodyMedium(17))
                 Text(subtitle).font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons).lineLimit(2)

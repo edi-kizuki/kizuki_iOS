@@ -17,7 +17,7 @@ public struct ProjectDetailView: View {
             PageScroll(spacing: 16) {
                 Artwork(seed: project.artSeed, height: 230, title: project.title).clipShape(RoundedRectangle(cornerRadius: 4))
                 Button { router.push(.profile(owner.id)) } label: {
-                    PersonRow(id: owner.id, name: owner.name, subtitle: "Project owner · \(owner.primaryRole)", portraitAsset: owner.portraitAsset)
+                    PersonRow(id: owner.id, name: owner.name, subtitle: "Project owner · \(owner.primaryRole)", portraitAsset: owner.portraitAsset, portraitData: owner.portraitData)
                 }.buttonStyle(.plain)
                 VStack(alignment: .leading, spacing: 14) {
                     Text(project.title).font(KizukiTheme.bodyBold(18)).foregroundStyle(KizukiTheme.charcoal)

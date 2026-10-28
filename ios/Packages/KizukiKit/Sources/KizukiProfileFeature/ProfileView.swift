@@ -2,6 +2,10 @@
 import KizukiCore
 import KizukiDesignSystem
 import SwiftUI
+import PhotosUI
+import CoreTransferable
+import ImageIO
+import UniformTypeIdentifiers
 
 public struct ProfileView: View {
     @Environment(AppStore.self) private var store
@@ -56,10 +60,18 @@ public struct ProfileView: View {
     }
 
     private func cover(_ person: Person, showsSettings: Bool, topInset: CGFloat) -> some View {
-        KizukiPatternBackground(tint: coverAccent(person.id))
+        ProfileCoverImage(data: person.coverData, tint: coverAccent(person.id))
             .frame(height: 184)
             .background(KizukiTheme.darkGrey)
-            .overlay { LinearGradient(colors: [.clear, KizukiTheme.charcoal], startPoint: .top, endPoint: .bottom) }
+            .overlay {
+                if person.coverData != nil {
+                    LinearGradient(stops: [.init(color: .black.opacity(0.55), location: 0.35),
+                        .init(color: .black.opacity(0.2), location: 0.6), .init(color: KizukiTheme.charcoal, location: 1)],
+                        startPoint: .top, endPoint: .bottom)
+                } else {
+                    LinearGradient(colors: [.clear, KizukiTheme.charcoal], startPoint: .top, endPoint: .bottom)
+                }
+            }
             .accessibilityHidden(true)
             .overlay(alignment: .topTrailing) {
                 if showsSettings {
@@ -75,7 +87,8 @@ public struct ProfileView: View {
     @ViewBuilder private func content(_ person: Person, isMe: Bool) -> some View {
         let identityLayout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16)) : AnyLayout(HStackLayout(alignment: .center, spacing: 16))
         identityLayout {
-            PersonAvatar(person.id, size: 92, portraitAsset: person.portraitAsset)
+            PersonAvatar(person.id, size: 92, portraitAsset: person.portraitAsset, portraitData: person.portraitData)
+                .accessibilityLabel(person.portraitData == nil ? "Profile avatar" : "Profile picture")
             VStack(alignment: .leading, spacing: 4) {
                 Text(person.name).font(KizukiTheme.poppins(16, weight: .bold, relativeTo: .headline))
                 Text("@\(person.handle)").font(KizukiTheme.mono(12)).foregroundStyle(KizukiTheme.babyBlueIcons)
@@ -123,7 +136,7 @@ public struct ProfileView: View {
         .accessibilityIdentifier("profile-availability")
         }
         if !person.visibleLinks.isEmpty {
-            SectionTitle("Work")
+            SectionTitle("Portfolio")
             ForEach(person.visibleLinks) { EmbedCard(link: $0).padding(.horizontal, KizukiTheme.floatingCardInset - KizukiTheme.pageInset) }
         }
         let photos = store.visiblePhotos.filter { $0.authorID == person.id }
@@ -166,7 +179,7 @@ struct GetDiscoveredCard: View {
                 Text("\(done) of \(steps.count)").font(KizukiTheme.mono(12)).foregroundStyle(KizukiTheme.charcoal)
                     .padding(.horizontal, 10).padding(.vertical, 4).background(KizukiTheme.yellow, in: Capsule())
             }
-            Text("Finish your basics so people know who you are. Work links and collab posts are optional.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            Text("Finish your basics so people know who you are. Portfolio links and collab posts are optional.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ProgressView(value: Double(done), total: Double(steps.count)).tint(KizukiTheme.orange).accessibilityHidden(true)
             ForEach(steps) { step in
                 Button { open(step) } label: {
@@ -259,13 +272,20 @@ public struct EditProfileView: View {
     @State private var loadedDraft = false
     @State private var saving = false
     @State private var saveFailed = false
+    @State private var portraitSelection: PhotosPickerItem?
+    @State private var coverSelection: PhotosPickerItem?
+    @State private var portraitData: Data?
+    @State private var coverData: Data?
+    @State private var portraitChanged = false
+    @State private var coverChanged = false
+    @State private var portraitLoading = false
+    @State private var coverLoading = false
+    @State private var photoError: String?
     public init() {}
 
     public var body: some View {
         PageScroll(spacing: 18) {
-            PersonAvatar(store.me.id, size: 72, portraitAsset: store.me.portraitAsset).frame(maxWidth: .infinity)
-            Text("Your profile basics").font(KizukiTheme.title(26))
-            Text("Add your name, a bio of at least 10 characters, your city and roles. You can save your progress at any time.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            photoEditor
             KizukiField("Display name", text: $name)
             KizukiTextArea("Bio", text: $bio)
             KizukiField("City", text: $city)
@@ -301,7 +321,7 @@ public struct EditProfileView: View {
             Text("Compensation preference").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ForEach(Compensation.allCases, id: \.self) { c in ChoiceRow(c.rawValue, selected: compensation == c) { compensation = c } }
             }
-            Text("Your links").font(KizukiTheme.title(22))
+            Text("Portfolio").font(KizukiTheme.title(22)).accessibilityIdentifier("edit-profile-portfolio")
             Text("Your work, in one place. Add a link, then choose what appears on your profile. Nothing here is used for matching.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ForEach(LinkKind.allCases, id: \.self) { kind in
                 VStack(alignment: .leading, spacing: 12) {
@@ -326,7 +346,7 @@ public struct EditProfileView: View {
                 .padding(16).background(KizukiTheme.grey, in: RoundedRectangle(cornerRadius: 12))
             }
         }
-        .disabled(saving)
+        .disabled(saving || loadingPhotos)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 12) {
                 if saving { ProgressView("Saving profile").tint(KizukiTheme.cream) }
@@ -335,12 +355,14 @@ public struct EditProfileView: View {
                     saving = true
                     saveFailed = false
                     Task {
-                        let saved = await store.saveProfileBasics(name: name, bio: bio, city: city, roles: roles, availability: availability, compensation: compensation, goal: goal, links: editedLinks)
+                        let saved = await store.saveProfileBasics(name: name, bio: bio, city: city, roles: roles, availability: availability, compensation: compensation, goal: goal, links: editedLinks,
+                            portrait: portraitChanged ? portraitData.map(ProfilePhotoUpdate.replace) ?? .remove : .unchanged,
+                            cover: coverChanged ? coverData.map(ProfilePhotoUpdate.replace) ?? .remove : .unchanged)
                         saving = false
                         if saved { router.sheet = nil } else { saveFailed = true }
                     }
                 }
-                .disabled(saving)
+                .disabled(saving || loadingPhotos)
             }
             .padding(KizukiTheme.pageInset).background(KizukiTheme.charcoal)
         }
@@ -366,6 +388,70 @@ public struct EditProfileView: View {
             goal = store.own.goal
             linkURLs = Dictionary(uniqueKeysWithValues: store.me.links.map { ($0.kind, $0.url) })
             enabledWidgets = Set(store.me.visibleLinks.map(\.kind))
+            portraitData = store.me.portraitData
+            coverData = store.me.coverData
+        }
+        .task(id: portraitSelection) { await importPhoto(portraitSelection, isCover: false) }
+        .task(id: coverSelection) { await importPhoto(coverSelection, isCover: true) }
+    }
+
+    private var loadingPhotos: Bool { portraitLoading || coverLoading }
+
+    private var photoEditor: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ProfileCoverImage(data: coverData, tint: KizukiTheme.yellow.opacity(0.65))
+                .frame(height: 140).clipShape(RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
+                .accessibilityLabel(coverData == nil ? "Default cover" : "Cover photo preview")
+            HStack(alignment: .center, spacing: 16) {
+                PersonAvatar(store.me.id, size: 72, portraitAsset: portraitChanged ? nil : store.me.portraitAsset, portraitData: portraitData)
+                    .accessibilityLabel(portraitData == nil ? "Profile avatar preview" : "Profile picture preview")
+                VStack(alignment: .leading, spacing: 0) {
+                    PhotosPicker(selection: $portraitSelection, matching: .images, preferredItemEncoding: .compatible) {
+                        Label("Change profile picture", systemImage: "camera").frame(minHeight: 44, alignment: .leading)
+                    }.accessibilityIdentifier("change-profile-picture")
+                    if portraitData != nil || (!portraitChanged && store.me.portraitAsset != nil) {
+                        Button("Remove profile picture", role: .destructive) {
+                            portraitData = nil; portraitChanged = true; portraitSelection = nil
+                        }.frame(minHeight: 44).accessibilityIdentifier("remove-profile-picture")
+                    }
+                }
+            }
+            PhotosPicker(selection: $coverSelection, matching: .images, preferredItemEncoding: .compatible) {
+                Label("Change cover photo", systemImage: "photo").frame(minHeight: 44, alignment: .leading)
+            }.accessibilityIdentifier("change-cover-photo")
+            if coverData != nil {
+                Button("Remove cover photo", role: .destructive) {
+                    coverData = nil; coverChanged = true; coverSelection = nil
+                }.frame(minHeight: 44).accessibilityIdentifier("remove-cover-photo")
+            }
+            if loadingPhotos { ProgressView("Preparing photo…").tint(KizukiTheme.cream) }
+            if let photoError { Text(photoError).foregroundStyle(KizukiTheme.salmon).accessibilityIdentifier("profile-photo-error") }
+            Text("Photos stay on this device in this preview. Cloud upload is not connected yet.")
+                .font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
+        }
+        .font(KizukiTheme.body(14)).tint(KizukiTheme.cream)
+    }
+
+    private func importPhoto(_ selection: PhotosPickerItem?, isCover: Bool) async {
+        guard let selection else { return }
+        if isCover { coverLoading = true } else { portraitLoading = true }
+        photoError = nil
+        defer { if isCover { coverLoading = false } else { portraitLoading = false } }
+        do {
+            guard let imported = try await selection.loadTransferable(type: ImportedProfilePhoto.self) else {
+                throw ProfilePhotoProcessor.Failure.unreadable
+            }
+            let data = try await Task.detached(priority: .userInitiated) {
+                if isCover { return imported.data }
+                return try ProfilePhotoProcessor.prepare(data: imported.data, maximumDimension: 512)
+            }.value
+            try Task.checkCancellation()
+            if isCover { coverData = data; coverChanged = true }
+            else { portraitData = data; portraitChanged = true }
+        } catch is CancellationError {
+        } catch {
+            guard !Task.isCancelled else { return }
+            photoError = "Couldn’t load that photo. Choose another still image under 25 MB, or download it from iCloud and try again."
         }
     }
 
@@ -381,6 +467,69 @@ public struct EditProfileView: View {
         guard let url = linkURLs[kind], !url.isEmpty else { return "Optional · no link added" }
         guard PortfolioWidgetDescriptor(link: ProfileLink(kind: kind, title: kind.rawValue, url: url)).state != .invalid else { return "Demo link · replace with your work" }
         return enabledWidgets.contains(kind) ? "Link added · shown on profile" : "Link added · hidden from profile"
+    }
+}
+
+private struct ProfileCoverImage: View {
+    let data: Data?
+    let tint: Color
+    var body: some View {
+        GeometryReader { geometry in
+            if let data, let image = UIImage(data: data) {
+                Image(uiImage: image).resizable().scaledToFill()
+                    .frame(width: geometry.size.width, height: geometry.size.height).clipped()
+            } else {
+                KizukiPatternBackground(tint: tint)
+            }
+        }.clipped()
+    }
+}
+
+private struct ImportedProfilePhoto: Transferable {
+    let data: Data
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(importedContentType: .image) { received in
+            ImportedProfilePhoto(data: try ProfilePhotoProcessor.prepare(file: received.file))
+        }
+    }
+}
+
+public enum ProfilePhotoProcessor {
+    public enum Failure: Error { case unreadable, tooLarge }
+    public static let maximumInputBytes = 25_000_000
+
+    public static func prepare(file: URL) throws -> Data {
+        let size = try file.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+        guard size > 0, size <= maximumInputBytes else { throw Failure.tooLarge }
+        guard let source = CGImageSourceCreateWithURL(file as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary) else { throw Failure.unreadable }
+        return try prepare(source: source, maximumDimension: 1600)
+    }
+
+    public static func prepare(data: Data, maximumDimension: Int = 1600) throws -> Data {
+        guard !data.isEmpty, data.count <= maximumInputBytes else { throw Failure.tooLarge }
+        guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary) else { throw Failure.unreadable }
+        return try prepare(source: source, maximumDimension: maximumDimension)
+    }
+
+    private static func prepare(source: CGImageSource, maximumDimension: Int) throws -> Data {
+        guard (1...1600).contains(maximumDimension), CGImageSourceGetCount(source) == 1,
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              width > 0, height > 0, width <= 20_000, height <= 20_000,
+              width * height <= 100_000_000 else { throw Failure.unreadable }
+        let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true, kCGImageSourceThumbnailMaxPixelSize: maximumDimension,
+            kCGImageSourceShouldCacheImmediately: true]
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { throw Failure.unreadable }
+        for quality in [0.82, 0.65, 0.45] {
+            let output = NSMutableData()
+            guard let destination = CGImageDestinationCreateWithData(output, UTType.jpeg.identifier as CFString, 1, nil) else { throw Failure.unreadable }
+            CGImageDestinationAddImage(destination, thumbnail, [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary)
+            guard CGImageDestinationFinalize(destination) else { throw Failure.unreadable }
+            if output.length <= ProfilePhotoUpdate.maximumBytes { return output as Data }
+        }
+        throw Failure.tooLarge
     }
 }
 

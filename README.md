@@ -47,7 +47,8 @@ Assignments, October 28, 2026:
 | --- | --- | --- |
 | PR #8 branding and flush profile at `528c53e` | Astra | Fable 5.1: no blocking findings; required CI not passed |
 | PR #8 weekly availability, floating profile cards and favourites removal | Fable 5.1 | Astra: independent local checks complete; final SHA and CI recorded in PR |
-| Next substantive change | Astra | Fable 5.1 |
+| PR #8 photo editing and CI runner-capacity workaround | Astra | Fable 5.1, pending |
+| Next substantive change after that review | Fable 5.1 | Astra |
 
 Record subsequent assignments and reviewed SHAs in PRs/handoffs. This is an agent operating policy, not a server-enforced GitHub approval gate. Required CI must also pass; two-model agreement is not certification of production readiness. Agents receive explicit briefs and exchange results through handoffs and repository files, not automatic shared conversation memory. Claude's connected Notion work remains separate. Do not silently substitute another provider or model.
 

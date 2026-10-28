@@ -4,9 +4,99 @@ import KizukiDesignSystem
 import KizukiTestSupport
 import Testing
 import UIKit
+import KizukiProfileFeature
+import ImageIO
+import UniformTypeIdentifiers
 
 @MainActor
 struct PrototypeStoreTests {
+    private func photoFixture() throws -> Data {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 2000, height: 1000)).image { context in
+            UIColor.systemBlue.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 2000, height: 1000))
+        }
+        let data = NSMutableData()
+        let destination = try #require(CGImageDestinationCreateWithData(data, UTType.jpeg.identifier as CFString, 1, nil))
+        let properties: [CFString: Any] = [kCGImagePropertyOrientation: 6,
+            kCGImagePropertyGPSDictionary: [kCGImagePropertyGPSLatitude: 52.52, kCGImagePropertyGPSLatitudeRef: "N"],
+            kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: "2026:10:28 12:00:00"]]
+        CGImageDestinationAddImage(destination, try #require(image.cgImage), properties as CFDictionary)
+        #expect(CGImageDestinationFinalize(destination))
+        return data as Data
+    }
+
+    @Test func photosAreBoundedOrientedAndMetadataFree() throws {
+        let original = try photoFixture()
+        for dimension in [512, 1600] {
+            let prepared = try ProfilePhotoProcessor.prepare(data: original, maximumDimension: dimension)
+            #expect(prepared.count <= ProfilePhotoUpdate.maximumBytes)
+            #expect(ProfilePhotoUpdate.replace(prepared).isValid)
+            let source = try #require(CGImageSourceCreateWithData(prepared as CFData, nil))
+            let properties = try #require(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any])
+            #expect(properties[kCGImagePropertyPixelHeight] as? Int == dimension)
+            #expect(properties[kCGImagePropertyPixelWidth] as? Int == dimension / 2)
+            #expect(properties[kCGImagePropertyGPSDictionary] == nil)
+            let exif = properties[kCGImagePropertyExifDictionary] as? [CFString: Any]
+            #expect(exif?[kCGImagePropertyExifDateTimeOriginal] == nil)
+        }
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try original.write(to: file)
+        #expect(try ProfilePhotoProcessor.prepare(file: file).count <= ProfilePhotoUpdate.maximumBytes)
+        #expect(throws: (any Error).self) { try ProfilePhotoProcessor.prepare(data: Data("not an image".utf8)) }
+        #expect(throws: (any Error).self) { try ProfilePhotoProcessor.prepare(data: Data(count: ProfilePhotoProcessor.maximumInputBytes + 1)) }
+        #expect(throws: (any Error).self) { try ProfilePhotoProcessor.prepare(data: original, maximumDimension: 0) }
+    }
+
+    @Test func profilePhotosSaveReloadPreserveAndRemove() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("profile.json")
+        let store = AppStore(dependencies: FixtureBackend.dependencies(storageURL: file))
+        await store.load()
+        let photo = try ProfilePhotoProcessor.prepare(data: photoFixture(), maximumDimension: 512)
+        func save(_ portrait: ProfilePhotoUpdate = .unchanged, _ cover: ProfilePhotoUpdate = .unchanged) async -> Bool {
+            await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: store.me.roles,
+                availability: store.own.availability, compensation: store.own.compensation, portrait: portrait, cover: cover)
+        }
+        #expect(await save(.replace(photo), .replace(photo)))
+        #expect(await save())
+        let reopened = AppStore(dependencies: FixtureBackend.dependencies(storageURL: file))
+        await reopened.load()
+        #expect(reopened.me.portraitData == photo)
+        #expect(reopened.me.coverData == photo)
+        #expect(reopened.me.portraitAsset == nil)
+        let previous = store.own
+        #expect(!(await save(.replace(Data(count: ProfilePhotoUpdate.maximumBytes + 1)))))
+        #expect(!(await save(.replace(Data("invalid".utf8)))))
+        #expect(store.own == previous)
+        #expect(await save(.remove, .remove))
+        let removed = AppStore(dependencies: FixtureBackend.dependencies(storageURL: file))
+        await removed.load()
+        #expect(removed.me.portraitData == nil && removed.me.coverData == nil)
+        #expect(removed.me.portraitAsset == nil)
+        var legacy = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(store.me)) as? [String: Any])
+        legacy.removeValue(forKey: "portraitData")
+        legacy.removeValue(forKey: "coverData")
+        let decoded = try JSONDecoder().decode(Person.self, from: JSONSerialization.data(withJSONObject: legacy))
+        #expect(decoded.portraitData == nil && decoded.coverData == nil)
+        #expect(decoded.id == store.me.id)
+    }
+
+    @Test func photoSaveFailureKeepsPreviousProfile() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = AppStore(dependencies: FixtureBackend.dependencies(storageURL: directory))
+        await store.load()
+        let original = store.own
+        let photo = try ProfilePhotoProcessor.prepare(data: photoFixture(), maximumDimension: 512)
+        let saved = await store.saveProfileBasics(name: "Do not persist", bio: store.me.bio, city: store.me.city, roles: store.me.roles,
+            availability: store.own.availability, compensation: store.own.compensation, portrait: .replace(photo), cover: .replace(photo))
+        #expect(!saved)
+        #expect(store.own == original)
+    }
+
     @Test func feedPromptsReflectOwnedDraftsPendingRequestsAndIncompleteProfiles() async throws {
         let store = AppStore(dependencies: FixtureBackend.dependencies())
         #expect(store.feedPrompts.isEmpty)

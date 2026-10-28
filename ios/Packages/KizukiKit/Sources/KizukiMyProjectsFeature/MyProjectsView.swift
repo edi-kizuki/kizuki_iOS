@@ -88,7 +88,7 @@ public struct OwnerProjectView: View {
                 Text("\(project.memberIDs.count) of \(project.seats) seats filled").font(KizukiTheme.mono(12)).foregroundStyle(KizukiTheme.babyBlueIcons)
                 ForEach(project.memberIDs, id: \.self) { id in
                     if let person = store.person(id) {
-                        Button { router.push(.profile(id)) } label: { PersonRow(id: id, name: person.name, subtitle: person.primaryRole, portraitAsset: person.portraitAsset) }.buttonStyle(.plain)
+                        Button { router.push(.profile(id)) } label: { PersonRow(id: id, name: person.name, subtitle: person.primaryRole, portraitAsset: person.portraitAsset, portraitData: person.portraitData) }.buttonStyle(.plain)
                     }
                 }
                 let waiting = store.requests.filter { $0.projectID == project.id && $0.direction == .incoming && $0.state == .pending }

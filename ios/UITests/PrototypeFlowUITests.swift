@@ -3,6 +3,106 @@ import XCTest
 /// Clicks through the fixture-backed prototype: entry, onboarding, every tab, and
 /// request → accept → Crew → chat. No backend is involved.
 final class PrototypeFlowUITests: XCTestCase {
+    @MainActor func testPhotoEditorPickerCancellationAndCleanHeadings() {
+        let app = launch(["-fixtures", "-screen", "profile-edit"])
+        let portrait = app.buttons["change-profile-picture"]
+        let cover = app.buttons["change-cover-photo"]
+        XCTAssertTrue(portrait.waitForExistence(timeout: 8))
+        XCTAssertFalse(app.staticTexts["Your profile basics"].exists)
+        XCTAssertTrue(cover.isHittable)
+        XCTAssertGreaterThanOrEqual(portrait.frame.height, 44)
+        XCTAssertGreaterThanOrEqual(cover.frame.height, 44)
+        portrait.tap()
+        let pickerCancel = app.navigationBars["Photos"].buttons["Cancel"]
+        XCTAssertTrue(pickerCancel.waitForExistence(timeout: 5))
+        if app.buttons["Close"].exists { app.buttons["Close"].tap() }
+        pickerCancel.tap()
+        XCTAssertTrue(app.navigationBars["Photos"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(portrait.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["remove-profile-picture"].exists)
+        cover.tap()
+        XCTAssertTrue(pickerCancel.waitForExistence(timeout: 5))
+        pickerCancel.tap()
+        XCTAssertTrue(app.navigationBars["Photos"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(cover.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["remove-cover-photo"].exists)
+        let portfolio = app.staticTexts["edit-profile-portfolio"]
+        for _ in 0..<35 {
+            let top = app.navigationBars["Edit profile"].frame.maxY + 12
+            let bottom = button(app, "Save").frame.minY - 20
+            if portfolio.isHittable && portfolio.frame.minY > top && portfolio.frame.maxY < bottom { break }
+            let reverse = portfolio.exists && portfolio.frame.height > 0 && portfolio.frame.minY < top
+            let upper = top + (bottom - top) * 0.25
+            let lower = top + (bottom - top) * 0.75
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            origin.withOffset(CGVector(dx: app.frame.midX, dy: reverse ? upper : lower))
+                .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: app.frame.midX, dy: reverse ? lower : upper)))
+        }
+        XCTAssertTrue(portfolio.isHittable)
+        XCTAssertFalse(app.staticTexts["Your links"].exists)
+        button(app, "Cancel").tap()
+    }
+
+    @MainActor func testPhotoSelectionSaveCancelAndRemove() {
+        let app = launch(["-fixtures", "-screen", "profile"])
+        button(app, "Edit profile").tap()
+        func selectPhoto(_ identifier: String) {
+            let control = app.buttons[identifier]
+            for _ in 0..<6 where !control.isHittable { app.scrollViews.firstMatch.swipeUp() }
+            control.tap()
+            XCTAssertTrue(app.navigationBars["Photos"].waitForExistence(timeout: 5))
+            if app.buttons["Close"].exists { app.buttons["Close"].tap() }
+            let photo = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Photo,'")).firstMatch
+            XCTAssertTrue(photo.waitForExistence(timeout: 5), "Simulator photo library must contain its sample images")
+            photo.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            XCTAssertTrue(app.navigationBars["Photos"].waitForNonExistence(timeout: 10))
+            let removeID = identifier == "change-profile-picture" ? "remove-profile-picture" : "remove-cover-photo"
+            XCTAssertTrue(app.buttons[removeID].waitForExistence(timeout: 10))
+        }
+        selectPhoto("change-profile-picture")
+        selectPhoto("change-cover-photo")
+        button(app, "Cancel").tap()
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.buttons["change-profile-picture"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["remove-profile-picture"].exists)
+        XCTAssertFalse(app.buttons["remove-cover-photo"].exists)
+        selectPhoto("change-profile-picture")
+        selectPhoto("change-cover-photo")
+        button(app, "Save").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
+        let saved = XCTAttachment(screenshot: app.screenshot())
+        saved.name = "Profile-custom-photos"; saved.lifetime = .keepAlways; add(saved)
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.buttons["remove-profile-picture"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["remove-cover-photo"].exists)
+        app.buttons["remove-profile-picture"].tap()
+        app.buttons["remove-cover-photo"].tap()
+        button(app, "Cancel").tap()
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.buttons["remove-profile-picture"].waitForExistence(timeout: 5))
+        app.buttons["remove-profile-picture"].tap()
+        app.buttons["remove-cover-photo"].tap()
+        button(app, "Save").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.buttons["change-profile-picture"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["remove-profile-picture"].exists)
+        XCTAssertFalse(app.buttons["remove-cover-photo"].exists)
+    }
+
+    @MainActor func testPhotoEditorAtLargestText() {
+        let app = launch(["-fixtures", "-screen", "profile-edit", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let portrait = app.buttons["change-profile-picture"]
+        XCTAssertTrue(portrait.waitForExistence(timeout: 8))
+        XCTAssertTrue(portrait.isHittable)
+        XCTAssertGreaterThanOrEqual(portrait.frame.height, 44)
+        XCTAssertLessThanOrEqual(portrait.frame.maxX, app.frame.maxX - 10)
+        XCTAssertTrue(button(app, "Save").isHittable)
+        XCTAssertFalse(app.staticTexts["Your profile basics"].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Photo-editor-largest-text"; screenshot.lifetime = .keepAlways; add(screenshot)
+    }
+
     @MainActor private func revealFeedBanner(_ banner: XCUIElement, in app: XCUIApplication) {
         for _ in 0..<30 {
             let frame = banner.frame
@@ -316,12 +416,17 @@ final class PrototypeFlowUITests: XCTestCase {
         button(app, "I am 18 or older and agree to the Terms.").tap()
         button(app, "Continue").tap()
         // The final location primer enters the app without an extra confirmation screen.
-        for step in 1...10 {
+        for step in 1..<10 {
             let next = button(app, "Continue")
             XCTAssertTrue(next.waitForExistence(timeout: 3), "step \(step)")
-            if step == 10 || step == 11 { XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label ==[c] 'Continue'")).count, 1) }
+            if step < 9 { XCTAssertTrue(app.staticTexts["\(step) / 10"].exists) }
+            else { XCTAssertTrue(app.staticTexts["STAY IN THE LOOP"].exists) }
+            if step == 9 { XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label ==[c] 'Continue'")).count, 1) }
             next.tap()
         }
+        XCTAssertTrue(app.staticTexts["FIND YOUR NEARBY PEOPLE"].waitForExistence(timeout: 3))
+        XCTAssertFalse(button(app, "Continue").exists)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label ==[c] 'Enter Kizuki'")).count, 1)
         button(app, "Enter Kizuki").tap()
 
         XCTAssertTrue(app.staticTexts["Recommended projects"].waitForExistence(timeout: 5))

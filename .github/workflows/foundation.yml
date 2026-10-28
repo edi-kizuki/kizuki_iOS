@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   ios:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +33,7 @@ jobs:
         with:
           name: ios-test-results
           path: .build/*.xcresult
+          include-hidden-files: true
   local-backend:
     runs-on: ubuntu-latest
     timeout-minutes: 20

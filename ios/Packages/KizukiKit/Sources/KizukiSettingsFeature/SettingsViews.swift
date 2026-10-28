@@ -94,7 +94,7 @@ public struct SettingsPageView: View {
         if store.blockedPeople.isEmpty { Text("You haven’t blocked anyone.").font(KizukiTheme.body(13)).foregroundStyle(KizukiTheme.babyBlueIcons) }
         ForEach(store.blockedPeople) { person in
             HStack {
-                PersonRow(id: person.id, name: person.name, subtitle: "@\(person.handle)", trailing: "nosign", portraitAsset: person.portraitAsset)
+                PersonRow(id: person.id, name: person.name, subtitle: "@\(person.handle)", trailing: "nosign", portraitAsset: person.portraitAsset, portraitData: person.portraitData)
                 Button("Unblock") { Task { await store.unblock(person.id) } }.buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
             }
         }
