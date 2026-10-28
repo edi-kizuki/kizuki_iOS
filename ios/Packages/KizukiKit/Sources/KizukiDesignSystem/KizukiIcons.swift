@@ -25,7 +25,7 @@ public enum KizukiIcon: String, CaseIterable, Sendable {
     /// Figma nav-bar icons from the same header (`1312:8142`), and the Suki mascot (App (Copy) `614:9214`).
     case settings = "IconSettings", messages = "IconMessages", sukiMascot = "SukiMascot"
 
-    public var image: Image { Image(rawValue, bundle: .module).renderingMode(.template) }
+    public var image: Image { Image(rawValue, bundle: .module).renderingMode(self == .feedLogo ? .original : .template) }
     /// Used by tests to prove each asset ships in the bundle.
     public var uiImage: UIImage? { UIImage(named: rawValue, in: .module, with: nil) }
 }

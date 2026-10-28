@@ -69,17 +69,18 @@ public struct ReasonChips: View {
 
 public struct KizukiIconButton: View {
     let symbol: String?, icon: KizukiIcon?, label: String
+    let tint: Color
     let action: () -> Void
-    public init(symbol: String, label: String, action: @escaping () -> Void) { self.symbol = symbol; self.icon = nil; self.label = label; self.action = action }
+    public init(symbol: String, label: String, action: @escaping () -> Void) { self.symbol = symbol; self.icon = nil; self.label = label; self.action = action; self.tint = KizukiTheme.babyBlueIcons }
     /// A Kizuki vector icon (24 pt glyph in a 44 pt target).
-    public init(icon: KizukiIcon, label: String, action: @escaping () -> Void) { self.symbol = nil; self.icon = icon; self.label = label; self.action = action }
+    public init(icon: KizukiIcon, label: String, tint: Color = KizukiTheme.babyBlueIcons, action: @escaping () -> Void) { self.symbol = nil; self.icon = icon; self.label = label; self.action = action; self.tint = tint }
     public var body: some View {
         Button(action: action) {
             Group {
                 if let icon { icon.image.resizable().scaledToFit().frame(width: 24, height: 24) }
                 else if let symbol { Image(systemName: symbol).font(.system(size: 22)) }
             }
-            .frame(width: 44, height: 44).contentShape(Rectangle()).foregroundStyle(KizukiTheme.babyBlueIcons)
+            .frame(width: 44, height: 44).contentShape(Rectangle()).foregroundStyle(tint)
         }.accessibilityLabel(label)
     }
 }
@@ -233,10 +234,9 @@ public struct KizukiTopBar: View {
     public var body: some View {
         HStack {
             KizukiIcon.feedLogo.image.resizable().scaledToFit().frame(width: 22, height: 42.2346)
-                .foregroundStyle(KizukiTheme.yellow)
                 .padding(.leading, 5.5).offset(y: -3).accessibilityLabel("Kizuki").accessibilityAddTraits(.isHeader)
             Spacer()
-            KizukiIconButton(icon: .messages, label: "Messages", action: onInbox).offset(y: 7)
+            KizukiIconButton(icon: .messages, label: "Messages", tint: KizukiTheme.orange, action: onInbox).offset(y: 7)
         }
         .padding(.leading, KizukiTheme.pageInset).padding(.trailing, 13).frame(minHeight: 62)
         .background(KizukiTheme.charcoal, in: UnevenRoundedRectangle(bottomLeadingRadius: 20, bottomTrailingRadius: 20))

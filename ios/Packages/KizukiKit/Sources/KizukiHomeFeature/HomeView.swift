@@ -67,11 +67,9 @@ public struct HomeView: View {
             HStack(spacing: 12) {
                 Image(systemName: content.symbol).font(.system(size: 18))
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(content.title).font(KizukiTheme.bodyMedium(15))
-                    Text(content.detail).font(KizukiTheme.body(13))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(content.title).font(KizukiTheme.bodyBold(19))
+                    .dynamicTypeSize(.large...)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right").font(.system(size: 12, weight: .medium))
                     .accessibilityHidden(true)
             }
@@ -79,10 +77,11 @@ public struct HomeView: View {
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .padding(.horizontal, 16).padding(.vertical, 10)
             .foregroundStyle(KizukiTheme.charcoal)
-            .background(KizukiTheme.babyBlueIcons, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(KizukiTheme.blue, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("feed-prompt-\(prompt.id)")
+        .accessibilityLabel("\(content.title). \(content.detail)")
         .accessibilityHint(content.action)
         .padding(.horizontal, KizukiTheme.floatingCardInset)
     }

@@ -12,19 +12,20 @@ Related: [[2026-10-25-design-tokens]], [[2026-10-25-icon-sheet-reference]], [[20
 
 ### Current logo — October 28, 2026
 
-Related: [[Header appearance experiment]]. The user selected `concept_8` (`570:2`) in Playground (Copy), file `3po5ynomzdPNe2mcO7IKRw`. These replace the older brand assets described below; the tab icons are unchanged.
+Related: [[Header appearance experiment]]. The user reversed the `concept_8` (`570:2`) experiment. The original `concept_8.6` wordmark, K mark and app-icon artwork are restored. Tab icons are unchanged.
 
-- `figma/wordmark-570-167.svg`: complete wordmark, original vector export.
-- `figma/k-mark-570-175.svg`: mascot K, shared by Feed and splash. Feed tints it palette yellow `#EBAF41`.
-- `figma/app-icon-mark-570-178.svg`: app-icon K, at the original placement inside a 293-point square. The tile is opaque and square; iOS supplies the mask. Light: charcoal on cream. Dark: yellow on charcoal. Tinted: white on black.
-- `python3 docs/design/icons/tools/build-brand.py` regenerates bundled brand vectors and all three 1024-pixel app-icon PNGs. Requires `rsvg-convert`. Source nodes were exported read-only; the Figma file was not modified.
+- Feed uses its original `1312:8143` artwork, with the blue body changed to palette yellow `#EBAF41`; charcoal eye details are preserved. The splash crest is restored.
+- `figma/app-icon-artwork-614-319.svg` supplies the original app-icon K. The tile is opaque and square; iOS supplies the mask. Light: charcoal on cream. Dark: palette orange `#E95833` on charcoal. Tinted: white on black for system tinting.
+- `python3 docs/design/icons/tools/build-brand.py` regenerates the three 1024-pixel app-icon PNGs only. Requires `rsvg-convert`. It does not overwrite the restored logo assets.
+- Feed DMs use `tabler:message-circle-filled`, exported from Kizuki App (Copy), file `nPqXTMCtd3OVZTSU7Y2uN3`, node `1312:10726`. Bundled as `IconMessages.svg` and template-tinted palette orange `#E95833`. The 44-point target and Messages accessibility label are unchanged.
+- Rechecked Figma variables: `1312:8064` confirms Kizuki Blue `#3F7BE2`; `1312:9852` confirms Kizuki Orange `#E95833`. The banner uses Blue, not Baby Blue icons `#B7C4DF`.
 
-The following inventory describes the superseded `concept_8.6` source and the still-current tab artwork.
+The following inventory describes the original local exports; some historical intermediate files remain locally ignored. The app-icon source above and bundled runtime assets are tracked.
 
 | Folder | What | Source | Vector or raster |
 | --- | --- | --- | --- |
 | `figma/` | Raw Figma exports (logos, K marks, app icon artwork) | Figma "Playground (Copy)", fileKey `3po5ynomzdPNe2mcO7IKRw`, page "Kizuki \| Moodboard", frame `concept_8.6` (`614:260`) | SVG (vector). One PNG preview at 4x |
-| `brand/` | Clean wordmark and K mark (background rectangles removed, eye cut-outs kept) | Built from `figma/` by `tools/build-brand.py` | SVG |
+| `brand/` | Historical clean wordmark and K mark (background rectangles removed, eye cut-outs kept) | Prepared from `figma/`; current runtime copies live in `KizukiIcons.xcassets` | SVG |
 | `app-icon/` | App icon, light / dark / tinted, SVG plus 1024 PNG with no alpha | Built from the Figma app-icon artwork `614:319` | SVG source, PNG render |
 | `sheet-traced/` | The 26 tab icons from the reference sheet: the five current ones and 21 alternates | **Traced from `../2026-10-25-icon-sheet-reference.jpg`** with potrace (`tools/crop-sheet.swift`, `tools/build-tab-icons.py`) | SVG (vector, but traced from a raster) |
 
