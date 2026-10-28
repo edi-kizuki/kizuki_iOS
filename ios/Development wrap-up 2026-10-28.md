@@ -136,3 +136,11 @@ Not audited this pass: Backend Functions & Jobs (including its obsolete TMDB fav
 ## Publication gate
 
 Before the documentation commit, the working tree contained only this report, its README link/QA status and the Portfolio terminology correction. All application changes were already pushed as `17ffd19`. The code reviewer did not modify the source. GitHub still reported `local-backend` passed and `ios` running for `17ffd19` at the final pre-commit inspection. The documentation push triggers a new PR-head check run; neither the old pending run nor local tests establish a pass for that new head. No merge, deployment, history rewrite or credential publication is authorized.
+
+## October 29 CI timeout follow-up
+
+Run `40780509093` on documentation head `f2295e4` completed with the iOS job cancelled. GitHub's check annotation explicitly states: **The job has exceeded the maximum execution time of 30m0s**. This is not the earlier runner-acquisition failure: the Intel runner started, built the app and was actively executing UI tests when its budget expired. The previously repaired onboarding/tab test passed in 84.441 seconds. Backend checks passed. Release-guard/build steps were skipped because the job timed out, not because they were removed.
+
+The iOS job allowance is increased from 30 to **90 minutes**. Cold build/simulator startup consumed roughly twelve minutes; the serial UI suite was still progressing at thirty minutes, with Staging/Release checks yet to run. Ninety minutes is bounded headroom for the full suite and release gates on the slower hosted Intel runner, not a measured completion-time promise. The backend job retains its 20-minute limit. No test selection, assertions, runner, permissions, artifact paths or release guards change. No retries or continue-on-error are introduced.
+
+Validation for this workflow-only repair: parse both workflow revisions and assert that removing the changed iOS timeout makes the structures identical; run whitespace and release-configuration checks. A new hosted run and independent Fable review remain required. Application source remains the previously reviewed `17ffd19`; its local test results do not prove hosted CI success. Astra owns this follow-up to the existing CI repair; author rotation is unchanged.
