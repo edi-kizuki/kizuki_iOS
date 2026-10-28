@@ -13,24 +13,25 @@ public struct MyProjectsView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            KizukiTopBar(title: "My Projects", symbol: .tabMyProjects, onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
-            PageScroll(spacing: 18) {
+            PageScroll(spacing: 18, horizontalPadding: 0, verticalPadding: 8) {
                 HStack {
                     Text("Ideas into the world.").font(KizukiTheme.mono(13)).foregroundStyle(KizukiTheme.babyBlueIcons)
                     Spacer()
                     KizukiIconButton(symbol: "plus", label: "Create a project") { router.sheet = .createProject }
                 }
+                .padding(.horizontal, KizukiTheme.pageInset)
                 ForEach(sections, id: \.0) { title, statuses in
-                    SectionTitle(title)
+                    SectionTitle(title).padding(.horizontal, KizukiTheme.pageInset)
                     let list = store.projects(statuses)
                     if list.isEmpty {
                         Text(title == "Drafts" ? "No drafts. Start something from the + button." : "Nothing here yet.")
                             .font(KizukiTheme.body(13)).foregroundStyle(KizukiTheme.babyBlueIcons)
+                            .padding(.horizontal, KizukiTheme.pageInset)
                     }
                     ForEach(list) { project in
                         Button { router.push(.project(project.id)) } label: {
                             HStack(spacing: 14) {
-                                Artwork(seed: project.artSeed, height: 84).frame(width: 84)
+                                Artwork(seed: project.artSeed, height: 104).frame(width: 96).clipped()
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(project.title).font(KizukiTheme.title(24)).lineLimit(1)
                                     Text("\(project.realm.rawValue) · \(project.status.rawValue)").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
@@ -38,7 +39,9 @@ public struct MyProjectsView: View {
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right").foregroundStyle(KizukiTheme.babyBlueIcons)
+                                    .padding(.trailing, KizukiTheme.pageInset)
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .background(KizukiTheme.grey.opacity(0.5))
                         }
                         .buttonStyle(.plain)

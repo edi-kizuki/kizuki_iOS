@@ -12,12 +12,11 @@ public struct SukiView: View {
 
     public var body: some View {
         @Bindable var router = router
-        VStack(spacing: 14) {
-            KizukiTopBar(title: "Suki", symbol: .sukiMascot, onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
+        VStack(spacing: 0) {
             Picker("Suki section", selection: $router.sukiSection) {
                 Text("Crew").tag(SukiSection.crew); Text("Requests").tag(SukiSection.requests); Text("Create").tag(SukiSection.create)
             }
-            .pickerStyle(.segmented).padding(.horizontal, 20)
+            .pickerStyle(.segmented).padding(.horizontal, 20).padding(.vertical, 12)
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     switch router.sukiSection {
@@ -26,7 +25,7 @@ public struct SukiView: View {
                     case .create: create
                     }
                 }
-                .padding(20)
+                .padding(.vertical, 16)
             }
         }
         .background(KizukiTheme.charcoal).foregroundStyle(KizukiTheme.cream)
@@ -48,8 +47,10 @@ public struct SukiView: View {
             }
             Spacer(minLength: 0)
         }
+        .padding(.horizontal, KizukiTheme.pageInset)
         if store.crew.isEmpty {
             SukiEmptyState(title: "Your Crew starts with a yes", message: "Accepted requests land here, with a chat.")
+                .padding(.horizontal, KizukiTheme.pageInset)
         }
         ForEach(store.crew) { person in
             CrewCard(person: person,
@@ -64,13 +65,14 @@ public struct SukiView: View {
     @ViewBuilder private var requests: some View {
         @Bindable var router = router
         Picker("Direction", selection: $router.showsSentRequests) { Text("Incoming").tag(false); Text("Sent").tag(true) }
-            .pickerStyle(.segmented)
+            .pickerStyle(.segmented).padding(.horizontal, KizukiTheme.pageInset)
         let direction: RequestDirection = router.showsSentRequests ? .outgoing : .incoming
         let list = store.requests(direction)
         if list.isEmpty {
             SukiEmptyState(title: direction == .incoming ? "No requests yet" : "Nothing sent yet",
                            message: direction == .incoming ? "When someone wishes to collab or asks to join, it lands here."
                                                            : "Wish to Collab from a profile, or Join project from a project.")
+                .padding(.horizontal, KizukiTheme.pageInset)
         }
         ForEach(list) { request in
             if let person = store.person(request.personID) {
@@ -98,7 +100,7 @@ public struct SukiView: View {
                         }
                     }
                 }
-                .kizukiPanel()
+                .kizukiPanel(edgeToEdge: true)
             }
         }
     }
@@ -125,7 +127,7 @@ public struct SukiView: View {
             HStack(spacing: -8) { PersonAvatar(FixtureAvatarIDs.a, size: 64); PersonAvatar(FixtureAvatarIDs.b, size: 64) }
             Text("Make room for your next idea.").font(KizukiTheme.title(26))
         }
-        .frame(maxWidth: .infinity).padding(.vertical, 12)
+        .frame(maxWidth: .infinity).padding(.vertical, 12).padding(.horizontal, KizukiTheme.pageInset)
         chooser("Create a project", "Find a Crew for something new", "plus.rectangle.on.rectangle") { router.sheet = .createProject }
         chooser("Post a collab", "Share a glimpse of your process", "photo.on.rectangle") { router.sheet = .postCollab }
     }
@@ -140,7 +142,7 @@ public struct SukiView: View {
                 Spacer()
                 Image(systemName: symbol).font(.system(size: 26)).foregroundStyle(KizukiTheme.blue)
             }
-            .frame(maxWidth: .infinity, minHeight: 78).kizukiPanel()
+            .frame(maxWidth: .infinity, minHeight: 78).kizukiPanel(edgeToEdge: true)
         }
         .buttonStyle(.plain)
     }
@@ -196,7 +198,7 @@ struct CrewCard: View {
             }
             .buttonStyle(.plain)
         }
-        .kizukiPanel()
+        .kizukiPanel(edgeToEdge: true)
     }
 }
 

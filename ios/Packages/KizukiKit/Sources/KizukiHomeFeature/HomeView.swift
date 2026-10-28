@@ -13,7 +13,7 @@ public struct HomeView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            KizukiTopBar(onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
+            KizukiTopBar(onInbox: { router.push(.inbox) })
             ScrollView {
                 VStack(spacing: 20) {
                     if store.own.goal == .collaborate, store.own.intent == .start, let draft {

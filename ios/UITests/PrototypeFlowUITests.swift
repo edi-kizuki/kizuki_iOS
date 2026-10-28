@@ -137,32 +137,47 @@ final class PrototypeFlowUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["I’m available to collab"].exists)
     }
 
-    @MainActor func testHeaderExperimentKeepsTabNavigationAndActions() {
-        let app = launch(["-fixtures", "-screen", "settings"])
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 8))
-        app.segmentedControls.buttons["Minimal"].tap()
-        app.navigationBars["Settings"].buttons.firstMatch.tap()
-        for label in ["Search", "Suki", "My Projects", "Profile"] {
+    @MainActor func testFeedOwnsInboxAndProfileOwnsSettings() {
+        let app = launch(["-fixtures", "-screen", "home"])
+        XCTAssertTrue(button(app, "Messages").waitForExistence(timeout: 8))
+        XCTAssertFalse(button(app, "Settings").exists)
+        button(app, "Messages").tap()
+        XCTAssertTrue(app.navigationBars["Messages"].waitForExistence(timeout: 5))
+        app.navigationBars["Messages"].buttons.firstMatch.tap()
+        for label in ["Search", "Suki", "My Projects"] {
             app.tabBars.buttons[label].tap()
             XCTAssertTrue(app.tabBars.buttons[label].isSelected)
-            XCTAssertTrue(app.descendants(matching: .any)["tab-header-minimal"].exists)
-            XCTAssertFalse(app.descendants(matching: .any)["tab-header-symbol"].exists)
-            XCTAssertTrue(button(app, "Settings").isHittable)
-            XCTAssertTrue(button(app, "Messages").isHittable)
-        }
-        button(app, "Settings").tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
-        app.segmentedControls.buttons["Symbols"].tap()
-        app.navigationBars["Settings"].buttons.firstMatch.tap()
-        for label in ["Profile", "Search", "Suki", "My Projects"] {
-            app.tabBars.buttons[label].tap()
-            XCTAssertTrue(app.descendants(matching: .any)["tab-header-symbol"].exists)
             XCTAssertFalse(app.descendants(matching: .any)["tab-header-minimal"].exists)
-            XCTAssertTrue(button(app, "Settings").isHittable)
-            XCTAssertTrue(button(app, "Messages").isHittable)
+            XCTAssertFalse(app.descendants(matching: .any)["tab-header-symbol"].exists)
+            XCTAssertFalse(button(app, "Settings").exists)
+            XCTAssertFalse(button(app, "Messages").exists)
+            if label == "Search" { XCTAssertLessThan(app.textFields["Search photos & videos"].frame.minY, 120) }
         }
-        button(app, "Settings").tap()
-        app.segmentedControls.buttons["Minimal"].tap()
+        app.tabBars.buttons["Profile"].tap()
+        XCTAssertFalse(button(app, "Messages").exists)
+        let settings = button(app, "Settings")
+        XCTAssertTrue(settings.isHittable)
+        XCTAssertGreaterThan(settings.frame.maxX, app.frame.maxX - 40)
+        XCTAssertLessThan(settings.frame.minY, 130)
+        settings.tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.segmentedControls.buttons["Symbols"].exists)
+        app.navigationBars["Settings"].buttons.firstMatch.tap()
+        XCTAssertTrue(app.tabBars.buttons["Profile"].isSelected)
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testProfileMenuAtLargestTextSize() {
+        let app = launch(["-fixtures", "-screen", "profile", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let settings = button(app, "Settings")
+        XCTAssertTrue(settings.waitForExistence(timeout: 8))
+        XCTAssertTrue(settings.isHittable)
+        XCTAssertGreaterThanOrEqual(settings.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
+        XCTAssertFalse(button(app, "Messages").exists)
+        settings.tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
     }
 
     @MainActor func testDebugDefaultAndTabBarAccessibilityScreenshots() {
