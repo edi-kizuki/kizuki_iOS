@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 # and GalleryScreen (ios/App/PrototypeRoot.swift). A unit test checks this list.
 ALL_SCREENS=(
   splash login eligibility
-  onb-handle onb-goal onb-realm onb-roles onb-taste onb-favourites onb-compensation onb-availability onb-city
+  onb-handle onb-goal onb-realm onb-roles onb-taste onb-compensation onb-availability onb-city
   onb-primer-notifications onb-primer-location
   home project-detail request-form
   search search-post

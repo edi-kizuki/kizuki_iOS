@@ -135,8 +135,19 @@ public final class AppStore {
         return prompts
     }
 
-    public func saveProfileBasics(name: String, bio: String, city: String, roles: [String], availability: Availability, compensation: Compensation, goal: Goal? = nil, links: [ProfileLink]? = nil) async -> Bool {
+    public func saveProfileBasics(name: String, bio: String, city: String, roles: [String], availability: Availability, compensation: Compensation, goal: Goal? = nil, links: [ProfileLink]? = nil, portrait: ProfilePhotoUpdate = .unchanged, cover: ProfilePhotoUpdate = .unchanged) async -> Bool {
+        guard portrait.isValid, cover.isValid else { return false }
         var profile = own
+        switch portrait {
+        case .unchanged: break
+        case .remove: profile.person.portraitData = nil; profile.person.portraitAsset = nil
+        case .replace(let data): profile.person.portraitData = data; profile.person.portraitAsset = nil
+        }
+        switch cover {
+        case .unchanged: break
+        case .remove: profile.person.coverData = nil
+        case .replace(let data): profile.person.coverData = data
+        }
         if let links {
             guard Set(links.map(\.kind)).count == links.count else { return false }
             var validatedLinks: [ProfileLink] = []

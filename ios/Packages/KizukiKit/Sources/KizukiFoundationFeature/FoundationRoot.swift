@@ -22,7 +22,8 @@ public struct FoundationRoot: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: KizukiTheme.spacing) {
-                Text("kizuki").font(.largeTitle.weight(.black)).foregroundStyle(KizukiTheme.accent)
+                KizukiIcon.wordmark.image.resizable().scaledToFit().frame(width: 140, height: 59)
+                    .foregroundStyle(KizukiTheme.yellow)
                     .accessibilityLabel("Kizuki")
                 if let session {
                     sessionContent(session)

@@ -80,7 +80,7 @@ public struct SukiView: View {
             if let person = store.person(request.personID) {
                 VStack(alignment: .leading, spacing: 12) {
                     Button { router.push(.request(request.id)) } label: {
-                        PersonRow(id: person.id, name: person.name, subtitle: "\(request.role) · \(request.timeCommitment)", portraitAsset: person.portraitAsset)
+                        PersonRow(id: person.id, name: person.name, subtitle: "\(request.role) · \(request.timeCommitment)", portraitAsset: person.portraitAsset, portraitData: person.portraitData)
                     }.buttonStyle(.plain)
                     Text(request.kind.label.uppercased()).font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.orange)
                     if let project = request.projectID.flatMap(store.project) { Text(project.title).font(KizukiTheme.title(22)) }
@@ -175,7 +175,7 @@ struct CrewCard: View {
         VStack(alignment: .leading, spacing: 16) {
             Button(action: onMessage) {
                 HStack(spacing: 16) {
-                    PersonAvatar(person.id, size: 64, portraitAsset: person.portraitAsset)
+                    PersonAvatar(person.id, size: 64, portraitAsset: person.portraitAsset, portraitData: person.portraitData)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(person.name).font(KizukiTheme.bodyBold(20))
                         Text(person.primaryRole)
@@ -250,7 +250,7 @@ public struct RequestDetailView: View {
         if let request = store.request(requestID), let person = store.person(request.personID) {
             PageScroll(spacing: 18) {
                 HStack(spacing: 14) {
-                    PersonAvatar(person.id, size: 64, portraitAsset: person.portraitAsset)
+                    PersonAvatar(person.id, size: 64, portraitAsset: person.portraitAsset, portraitData: person.portraitData)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(person.name).font(KizukiTheme.title(28))
                         Text("@\(person.handle) · \(person.city)").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)

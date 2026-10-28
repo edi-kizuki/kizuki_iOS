@@ -69,17 +69,18 @@ public struct ReasonChips: View {
 
 public struct KizukiIconButton: View {
     let symbol: String?, icon: KizukiIcon?, label: String
+    let tint: Color
     let action: () -> Void
-    public init(symbol: String, label: String, action: @escaping () -> Void) { self.symbol = symbol; self.icon = nil; self.label = label; self.action = action }
+    public init(symbol: String, label: String, action: @escaping () -> Void) { self.symbol = symbol; self.icon = nil; self.label = label; self.action = action; self.tint = KizukiTheme.babyBlueIcons }
     /// A Kizuki vector icon (24 pt glyph in a 44 pt target).
-    public init(icon: KizukiIcon, label: String, action: @escaping () -> Void) { self.symbol = nil; self.icon = icon; self.label = label; self.action = action }
+    public init(icon: KizukiIcon, label: String, tint: Color = KizukiTheme.babyBlueIcons, action: @escaping () -> Void) { self.symbol = nil; self.icon = icon; self.label = label; self.action = action; self.tint = tint }
     public var body: some View {
         Button(action: action) {
             Group {
                 if let icon { icon.image.resizable().scaledToFit().frame(width: 24, height: 24) }
                 else if let symbol { Image(systemName: symbol).font(.system(size: 22)) }
             }
-            .frame(width: 44, height: 44).contentShape(Rectangle()).foregroundStyle(KizukiTheme.babyBlueIcons)
+            .frame(width: 44, height: 44).contentShape(Rectangle()).foregroundStyle(tint)
         }.accessibilityLabel(label)
     }
 }
@@ -131,10 +132,13 @@ public struct PersonAvatar: View {
     let id: UUID
     var size: CGFloat
     var portraitAsset: String?
-    public init(_ id: UUID, size: CGFloat = 56, portraitAsset: String? = nil) { self.id = id; self.size = size; self.portraitAsset = portraitAsset }
+    var portraitData: Data?
+    public init(_ id: UUID, size: CGFloat = 56, portraitAsset: String? = nil, portraitData: Data? = nil) { self.id = id; self.size = size; self.portraitAsset = portraitAsset; self.portraitData = portraitData }
     public var body: some View {
         Group {
-            if let portraitAsset, UIImage(named: portraitAsset, in: .module, compatibleWith: nil) != nil {
+            if let portraitData, let image = UIImage(data: portraitData) {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else if let portraitAsset, UIImage(named: portraitAsset, in: .module, compatibleWith: nil) != nil {
                 Image(portraitAsset, bundle: .module).resizable().scaledToFill()
             } else {
                 ProfileAvatar(profileID: id)
@@ -235,7 +239,7 @@ public struct KizukiTopBar: View {
             KizukiIcon.feedLogo.image.resizable().scaledToFit().frame(width: 22, height: 42.2346)
                 .padding(.leading, 5.5).offset(y: -3).accessibilityLabel("Kizuki").accessibilityAddTraits(.isHeader)
             Spacer()
-            KizukiIconButton(icon: .messages, label: "Messages", action: onInbox).offset(y: 7)
+            KizukiIconButton(icon: .messages, label: "Messages", tint: KizukiTheme.orange, action: onInbox).offset(y: 7)
         }
         .padding(.leading, KizukiTheme.pageInset).padding(.trailing, 13).frame(minHeight: 62)
         .background(KizukiTheme.charcoal, in: UnevenRoundedRectangle(bottomLeadingRadius: 20, bottomTrailingRadius: 20))
@@ -247,12 +251,13 @@ public struct PersonRow: View {
     let id: UUID, name: String, subtitle: String
     var trailing: String
     var portraitAsset: String?
-    public init(id: UUID, name: String, subtitle: String, trailing: String = "chevron.right", portraitAsset: String? = nil) {
-        self.id = id; self.name = name; self.subtitle = subtitle; self.trailing = trailing; self.portraitAsset = portraitAsset
+    var portraitData: Data?
+    public init(id: UUID, name: String, subtitle: String, trailing: String = "chevron.right", portraitAsset: String? = nil, portraitData: Data? = nil) {
+        self.id = id; self.name = name; self.subtitle = subtitle; self.trailing = trailing; self.portraitAsset = portraitAsset; self.portraitData = portraitData
     }
     public var body: some View {
         HStack(spacing: 14) {
-            PersonAvatar(id, size: 48, portraitAsset: portraitAsset)
+            PersonAvatar(id, size: 48, portraitAsset: portraitAsset, portraitData: portraitData)
             VStack(alignment: .leading, spacing: 4) {
                 Text(name).font(KizukiTheme.bodyMedium(17))
                 Text(subtitle).font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons).lineLimit(2)

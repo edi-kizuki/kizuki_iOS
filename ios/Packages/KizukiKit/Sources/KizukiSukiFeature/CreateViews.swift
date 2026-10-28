@@ -44,7 +44,7 @@ public struct CreateProjectView: View {
             } }
             KizukiField("City", text: $city)
             label("Time investment")
-            ForEach(Availability.allCases, id: \.self) { a in ChoiceRow(a.rawValue, selected: time == a) { time = a } }
+            ForEach(Availability.allCases, id: \.self) { a in ChoiceRow(a.hoursLabel, selected: time == a) { time = a } }
             Stepper("Open seats: \(seats)", value: $seats, in: 1...8).font(KizukiTheme.body(15))
             PrimaryButton("Publish project", color: KizukiTheme.yellow, textColor: KizukiTheme.charcoal) { save(.published) }.disabled(!valid)
             OutlineButton("Save as draft") { save(.draft) }.disabled(!valid)

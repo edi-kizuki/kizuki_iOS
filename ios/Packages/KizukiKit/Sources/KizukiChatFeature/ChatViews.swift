@@ -24,7 +24,7 @@ public struct InboxView: View {
             ForEach(list) { conversation in
                 if let person = store.person(conversation.personID) {
                     Button { router.push(.conversation(person.id)) } label: {
-                        PersonRow(id: person.id, name: person.name, subtitle: conversation.messages.last?.text ?? "Say hello", trailing: "chevron.right", portraitAsset: person.portraitAsset)
+                        PersonRow(id: person.id, name: person.name, subtitle: conversation.messages.last?.text ?? "Say hello", trailing: "chevron.right", portraitAsset: person.portraitAsset, portraitData: person.portraitData)
                     }
                     .buttonStyle(.plain)
                     Divider().overlay(KizukiTheme.grey)
@@ -83,7 +83,7 @@ public struct ChatThreadView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Button { router.push(.profile(person.id)) } label: {
-                        HStack(spacing: 8) { PersonAvatar(person.id, size: 28, portraitAsset: person.portraitAsset); Text(person.name).font(KizukiTheme.bodyMedium(16)) }
+                        HStack(spacing: 8) { PersonAvatar(person.id, size: 28, portraitAsset: person.portraitAsset, portraitData: person.portraitData); Text(person.name).font(KizukiTheme.bodyMedium(16)) }
                     }.buttonStyle(.plain).accessibilityLabel("\(person.name), open profile")
                 }
                 ToolbarItem(placement: .topBarTrailing) {

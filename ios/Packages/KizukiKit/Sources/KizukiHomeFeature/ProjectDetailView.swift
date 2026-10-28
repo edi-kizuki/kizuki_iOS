@@ -17,14 +17,14 @@ public struct ProjectDetailView: View {
             PageScroll(spacing: 16) {
                 Artwork(seed: project.artSeed, height: 230, title: project.title).clipShape(RoundedRectangle(cornerRadius: 4))
                 Button { router.push(.profile(owner.id)) } label: {
-                    PersonRow(id: owner.id, name: owner.name, subtitle: "Project owner · \(owner.primaryRole)", portraitAsset: owner.portraitAsset)
+                    PersonRow(id: owner.id, name: owner.name, subtitle: "Project owner · \(owner.primaryRole)", portraitAsset: owner.portraitAsset, portraitData: owner.portraitData)
                 }.buttonStyle(.plain)
                 VStack(alignment: .leading, spacing: 14) {
                     Text(project.title).font(KizukiTheme.bodyBold(18)).foregroundStyle(KizukiTheme.charcoal)
                     Text(project.summary).font(KizukiTheme.mono(12)).foregroundStyle(KizukiTheme.charcoal)
                     detailRow("Category", project.realm.rawValue)
                     detailRow("Compensation", project.compensation.rawValue)
-                    detailRow("Time", project.timeCommitment.rawValue)
+                    detailRow("Time", project.timeCommitment.hoursLabel)
                     detailRow("Set up", "\(project.workMode.rawValue) · \(project.city)")
                     detailRow("Seats", "\(max(0, project.seats - project.memberIDs.count)) open of \(project.seats)")
                     VStack(alignment: .leading, spacing: 6) {

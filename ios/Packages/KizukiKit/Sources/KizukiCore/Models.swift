@@ -121,6 +121,8 @@ public struct PortfolioWidgetDescriptor: Sendable, Equatable {
 
 public struct Person: Identifiable, Sendable, Hashable, Codable {
     public var portraitAsset: String?
+    public var portraitData: Data?
+    public var coverData: Data?
     public var collaborationEnabled: Bool?
     public let id: UUID
     public var name: String
@@ -145,6 +147,19 @@ public struct Person: Identifiable, Sendable, Hashable, Codable {
 }
 
 public enum Goal: String, CaseIterable, Sendable, Codable { case collaborate = "I want to collaborate", explore = "Explore and get inspired" }
+
+public enum ProfilePhotoUpdate: Sendable {
+    case unchanged, remove, replace(Data)
+    public static let maximumBytes = 1_000_000
+
+    public var isValid: Bool {
+        switch self {
+        case .unchanged, .remove: true
+        case .replace(let data):
+            data.count <= Self.maximumBytes && data.count >= 4 && data.starts(with: [0xFF, 0xD8]) && data.suffix(2) == Data([0xFF, 0xD9])
+        }
+    }
+}
 public enum Intent: String, CaseIterable, Sendable, Codable { case start = "Start a project", join = "Join a project" }
 public enum Compensation: String, CaseIterable, Sendable, Hashable, Codable {
     case paid = "Paid work", passion = "Passion projects", open = "Open to either"
@@ -152,6 +167,23 @@ public enum Compensation: String, CaseIterable, Sendable, Hashable, Codable {
 public enum WorkMode: String, CaseIterable, Sendable, Hashable, Codable { case local = "Local", remote = "Remote", both = "Both" }
 public enum Availability: String, CaseIterable, Sendable, Hashable, Codable {
     case low = "Under 5 hours / week", mid = "5–10 hours / week", high = "10+ hours / week"
+
+    public enum Level: String, Sendable, Hashable, CaseIterable { case low = "Low", medium = "Medium", high = "High" }
+    public var level: Level {
+        switch self {
+        case .low: .low
+        case .mid: .medium
+        case .high: .high
+        }
+    }
+    public var hoursLabel: String {
+        switch self {
+        case .low: "Under 5 hours / week"
+        case .mid: "5–9 hours / week"
+        case .high: "10+ hours / week"
+        }
+    }
+    public var levelLabel: String { "\(level.rawValue) availability" }
 }
 
 /// The signed-in creator: public profile fields plus private onboarding answers.
@@ -165,8 +197,8 @@ public struct OwnProfile: Sendable, Equatable, Codable {
     public var workMode: WorkMode = .both
     public var tasteCards: Set<Int> = [0, 2]
     public var favourites: Set<String> = []
-    public var showFavourites = true
-    public var useFavouritesForMatching = true
+    public var showFavourites = false
+    public var useFavouritesForMatching = false
     public var useTasteForMatching = true
     public init(person: Person) { self.person = person }
 }
