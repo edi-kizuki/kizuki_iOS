@@ -104,6 +104,37 @@ public final class AppStore {
     public var discoveryDoneCount: Int { discoverySteps.filter(\.done).count }
     public var isProfileComplete: Bool { discoverySteps.allSatisfy(\.done) }
 
+    public enum FeedPrompt: Identifiable, Hashable, Sendable {
+        case finishProject(UUID), reviewRequests(Int), completeProfile, startConversation(UUID)
+
+        public var id: String {
+            switch self {
+            case .finishProject: "draft"
+            case .reviewRequests: "requests"
+            case .completeProfile: "profile"
+            case .startConversation: "crew"
+            }
+        }
+    }
+
+    public var feedPrompts: [FeedPrompt] {
+        guard isLoaded else { return [] }
+        var prompts: [FeedPrompt] = []
+        if own.goal == .collaborate {
+            if let draft = projects([.draft]).first(where: isOwner) {
+                prompts.append(.finishProject(draft.id))
+            }
+            let pending = requests(.incoming).filter { $0.state == .pending }.count
+            if pending > 0 { prompts.append(.reviewRequests(pending)) }
+        }
+        if !isProfileComplete { prompts.append(.completeProfile) }
+        if own.goal == .collaborate,
+           let person = crew.first(where: { conversation(with: $0.id)?.messages.isEmpty ?? true }) {
+            prompts.append(.startConversation(person.id))
+        }
+        return prompts
+    }
+
     public func saveProfileBasics(name: String, bio: String, city: String, roles: [String], availability: Availability, compensation: Compensation, goal: Goal? = nil, links: [ProfileLink]? = nil) async -> Bool {
         var profile = own
         if let links {

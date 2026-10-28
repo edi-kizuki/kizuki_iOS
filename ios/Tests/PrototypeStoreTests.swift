@@ -7,6 +7,50 @@ import UIKit
 
 @MainActor
 struct PrototypeStoreTests {
+    @Test func feedPromptsReflectOwnedDraftsPendingRequestsAndIncompleteProfiles() async throws {
+        let store = AppStore(dependencies: FixtureBackend.dependencies())
+        #expect(store.feedPrompts.isEmpty)
+        await store.load()
+        let draft = try #require(store.projects([.draft]).first { store.isOwner($0) })
+        #expect(store.feedPrompts.contains(.finishProject(draft.id)))
+        let pending = store.requests(.incoming).filter { $0.state == .pending }
+        #expect(store.feedPrompts.contains(.reviewRequests(pending.count)))
+        #expect(store.feedPrompts.contains(.completeProfile))
+        #expect(Set(store.feedPrompts.map(\.id)).count == store.feedPrompts.count)
+        #expect(!store.feedPrompts.contains { $0.id == "crew" })
+        for var project in store.projects([.draft]) where store.isOwner(project) {
+            project.status = .published
+            await store.saveProject(project)
+        }
+        #expect(!store.feedPrompts.contains { $0.id == "draft" })
+        for request in pending { await store.respond(to: request.id, with: .decline) }
+        #expect(!store.feedPrompts.contains { $0.id == "requests" })
+        #expect(await store.saveProfileBasics(name: store.me.name, bio: "Making films with kind people.", city: store.me.city, roles: store.me.roles, availability: .mid, compensation: .open))
+        #expect(store.feedPrompts.isEmpty)
+    }
+
+    @Test func feedPromptsRespectSafetyAndStopAfterFirstMessage() async throws {
+        let store = await loadedStore()
+        let pending = store.requests(.incoming).filter { $0.state == .pending }
+        let request = try #require(pending.first)
+        await store.respond(to: request.id, with: .accept)
+        #expect(store.feedPrompts.contains(.startConversation(request.personID)))
+        await store.sendMessage("Hello!", to: request.personID)
+        #expect(!store.feedPrompts.contains(.startConversation(request.personID)))
+        for request in pending.dropFirst() { await store.block(request.personID) }
+        #expect(!store.feedPrompts.contains { $0.id == "requests" })
+        let anotherStore = await loadedStore()
+        await anotherStore.respond(to: request.id, with: .accept)
+        await anotherStore.block(request.personID)
+        #expect(!anotherStore.feedPrompts.contains(.startConversation(request.personID)))
+    }
+
+    @Test func inspirationFeedDoesNotNudgeCollaboration() async {
+        let store = await loadedStore()
+        #expect(await store.saveProfileBasics(name: store.me.name, bio: "Collecting creative inspiration.", city: store.me.city, roles: [], availability: .low, compensation: .open, goal: .explore))
+        #expect(store.feedPrompts.isEmpty)
+    }
+
     @Test func widgetVisibilitySurvivesColdLoadWithoutDeletingLinks() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

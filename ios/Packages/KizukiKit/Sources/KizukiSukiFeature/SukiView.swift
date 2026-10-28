@@ -12,12 +12,11 @@ public struct SukiView: View {
 
     public var body: some View {
         @Bindable var router = router
-        VStack(spacing: 14) {
-            KizukiTopBar(title: "Suki", symbol: .sukiMascot, onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
+        VStack(spacing: 0) {
             Picker("Suki section", selection: $router.sukiSection) {
                 Text("Crew").tag(SukiSection.crew); Text("Requests").tag(SukiSection.requests); Text("Create").tag(SukiSection.create)
             }
-            .pickerStyle(.segmented).padding(.horizontal, 20)
+            .pickerStyle(.segmented).padding(.horizontal, 20).padding(.vertical, 12)
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     switch router.sukiSection {
@@ -26,7 +25,7 @@ public struct SukiView: View {
                     case .create: create
                     }
                 }
-                .padding(20)
+                .padding(.vertical, 16)
             }
         }
         .background(KizukiTheme.charcoal).foregroundStyle(KizukiTheme.cream)
@@ -39,23 +38,27 @@ public struct SukiView: View {
     // MARK: Crew
 
     @ViewBuilder private var crew: some View {
-        // Suki greets you above the Crew. Decorative, so VoiceOver skips it.
-        HStack(alignment: .bottom, spacing: 14) {
-            if !store.crew.isEmpty { SukiMascotView(height: 64) }
+        HStack(alignment: .center, spacing: 14) {
+            KizukiIllustration.crewMedusa.image.resizable().scaledToFit()
+                .frame(width: 88, height: 58)
+                .foregroundStyle(KizukiTheme.cream).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 SectionTitle("Your Crew")
                 Text("People you’re building something with.").font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
             }
             Spacer(minLength: 0)
         }
+        .padding(.horizontal, KizukiTheme.pageInset)
         if store.crew.isEmpty {
             SukiEmptyState(title: "Your Crew starts with a yes", message: "Accepted requests land here, with a chat.")
+                .padding(.horizontal, KizukiTheme.pageInset)
         }
         ForEach(store.crew) { person in
             CrewCard(person: person,
                      onMessage: { router.push(.conversation(person.id)) },
                      onProfile: { router.push(.profile(person.id)) },
                      onRemove: { removing = person })
+                .padding(.horizontal, KizukiTheme.floatingCardInset)
         }
     }
 
@@ -64,13 +67,14 @@ public struct SukiView: View {
     @ViewBuilder private var requests: some View {
         @Bindable var router = router
         Picker("Direction", selection: $router.showsSentRequests) { Text("Incoming").tag(false); Text("Sent").tag(true) }
-            .pickerStyle(.segmented)
+            .pickerStyle(.segmented).padding(.horizontal, KizukiTheme.pageInset)
         let direction: RequestDirection = router.showsSentRequests ? .outgoing : .incoming
         let list = store.requests(direction)
         if list.isEmpty {
             SukiEmptyState(title: direction == .incoming ? "No requests yet" : "Nothing sent yet",
                            message: direction == .incoming ? "When someone wishes to collab or asks to join, it lands here."
                                                            : "Wish to Collab from a profile, or Join project from a project.")
+                .padding(.horizontal, KizukiTheme.pageInset)
         }
         ForEach(list) { request in
             if let person = store.person(request.personID) {
@@ -81,25 +85,38 @@ public struct SukiView: View {
                     Text(request.kind.label.uppercased()).font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.orange)
                     if let project = request.projectID.flatMap(store.project) { Text(project.title).font(KizukiTheme.title(22)) }
                     else { Text(direction == .incoming ? "\(person.firstName) wishes to collab" : "You wished to collab").font(KizukiTheme.title(22)) }
-                    HStack {
-                        stateBadge(request.state)
-                        Spacer()
-                        if request.state == .pending {
-                            if direction == .incoming {
-                                Button("Decline") { Task { await store.respond(to: request.id, with: .decline) } }
-                                    .buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
-                                Button("Accept") { accept(request) }.buttonStyle(.borderedProminent).tint(KizukiTheme.blue).frame(minHeight: 44)
-                            } else {
-                                Button("Withdraw") { Task { await store.respond(to: request.id, with: .withdraw) } }
-                                    .buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
-                            }
-                        } else if request.state == .accepted {
-                            Button("Open chat") { router.push(.conversation(person.id)) }.buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
-                        }
+                    ViewThatFits(in: .horizontal) {
+                        requestActions(request, person: person, stacked: false)
+                        requestActions(request, person: person, stacked: true)
                     }
                 }
-                .kizukiPanel()
+                .kizukiFloatingCard()
+                .padding(.horizontal, KizukiTheme.floatingCardInset)
             }
+        }
+    }
+
+    private func requestActions(_ request: CollabRequest, person: Person, stacked: Bool) -> some View {
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(spacing: 8))
+        let actions = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+        return layout {
+            stateBadge(request.state)
+            if !stacked { Spacer(minLength: 8) }
+            actions {
+                if request.state == .pending {
+                    if request.direction == .incoming {
+                        Button("Decline") { Task { await store.respond(to: request.id, with: .decline) } }
+                            .buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
+                        Button("Accept") { accept(request) }.buttonStyle(.borderedProminent).tint(KizukiTheme.blue).frame(minHeight: 44)
+                    } else {
+                        Button("Withdraw") { Task { await store.respond(to: request.id, with: .withdraw) } }
+                            .buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
+                    }
+                } else if request.state == .accepted {
+                    Button("Open chat") { router.push(.conversation(person.id)) }.buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
+                }
+            }
+            .fixedSize(horizontal: !stacked, vertical: true)
         }
     }
 
@@ -125,7 +142,7 @@ public struct SukiView: View {
             HStack(spacing: -8) { PersonAvatar(FixtureAvatarIDs.a, size: 64); PersonAvatar(FixtureAvatarIDs.b, size: 64) }
             Text("Make room for your next idea.").font(KizukiTheme.title(26))
         }
-        .frame(maxWidth: .infinity).padding(.vertical, 12)
+        .frame(maxWidth: .infinity).padding(.vertical, 12).padding(.horizontal, KizukiTheme.pageInset)
         chooser("Create a project", "Find a Crew for something new", "plus.rectangle.on.rectangle") { router.sheet = .createProject }
         chooser("Post a collab", "Share a glimpse of your process", "photo.on.rectangle") { router.sheet = .postCollab }
     }
@@ -140,9 +157,10 @@ public struct SukiView: View {
                 Spacer()
                 Image(systemName: symbol).font(.system(size: 26)).foregroundStyle(KizukiTheme.blue)
             }
-            .frame(maxWidth: .infinity, minHeight: 78).kizukiPanel()
+            .frame(maxWidth: .infinity, minHeight: 78).kizukiFloatingCard()
         }
         .buttonStyle(.plain)
+        .padding(.horizontal, KizukiTheme.floatingCardInset)
     }
 }
 
@@ -154,15 +172,14 @@ struct CrewCard: View {
     let onRemove: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 16) {
             Button(action: onMessage) {
-                // Unlike PersonRow, Crew identity has no trailing glyph or subtitle line limit.
-                HStack(spacing: 14) {
-                    PersonAvatar(person.id, size: 48, portraitAsset: person.portraitAsset)
+                HStack(spacing: 16) {
+                    PersonAvatar(person.id, size: 64, portraitAsset: person.portraitAsset)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(person.name).font(KizukiTheme.bodyMedium(17))
-                        Text("\(person.primaryRole) · Say hello")
-                            .font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons)
+                        Text(person.name).font(KizukiTheme.bodyBold(20))
+                        Text(person.primaryRole)
+                            .font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
                     }
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -173,18 +190,17 @@ struct CrewCard: View {
             .buttonStyle(.plain)
             .accessibilityHint("Opens chat")
             HStack(alignment: .center, spacing: 8) {
-                Button("View profile", action: onProfile)
-                    .font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
-                    .fixedSize(horizontal: false, vertical: true).frame(minHeight: 44)
+                OutlineButton("View profile", action: onProfile)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel("View profile for \(person.name)")
-                Spacer(minLength: 0)
                 HStack(alignment: .center, spacing: 8) {
                     KizukiIconButton(icon: .messages, label: "Message \(person.name)", action: onMessage)
+                        .background(KizukiTheme.blue.opacity(0.16), in: Circle())
                         .accessibilityShowsLargeContentViewer()
                     Menu {
                         Button("Remove from Crew", systemImage: "person.badge.minus", role: .destructive, action: onRemove)
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Image(systemName: "ellipsis")
                             .font(.system(size: 24))
                             .frame(width: 44, height: 44).contentShape(Rectangle())
                     }
@@ -196,7 +212,8 @@ struct CrewCard: View {
             }
             .buttonStyle(.plain)
         }
-        .kizukiPanel()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .kizukiFloatingCard()
     }
 }
 

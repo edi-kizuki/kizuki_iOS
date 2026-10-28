@@ -34,6 +34,7 @@ public enum KizukiIcon: String, CaseIterable, Sendable {
 }
 
 public enum KizukiIllustration: String, CaseIterable {
+    case crewMedusa = "CrewMedusa"
     case dancingTrio = "DancingTrio", swirl = "SwirlPattern"
     case onboardingEyes = "OnboardingEyes", onboardingEye = "OnboardingEye", onboardingSuki = "OnboardingSuki"
     case onboardingCrest = "OnboardingCrest", onboardingWelcome = "OnboardingWelcome", onboardingAxolotl = "OnboardingAxolotl"

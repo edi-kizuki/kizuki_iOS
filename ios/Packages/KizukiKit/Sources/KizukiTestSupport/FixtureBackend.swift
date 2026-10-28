@@ -125,7 +125,7 @@ public actor FixtureBackend: OwnProfileRepository, DirectoryRepository, ProjectR
             let r = requestList[i]
             if !conversationList.contains(where: { $0.personID == r.personID }) {
                 conversationList.append(Conversation(personID: r.personID, projectTitle: projectList.first { $0.id == r.projectID }?.title,
-                                                     messages: [ChatMessage(text: "Request accepted. Welcome to the Crew!", fromMe: true)]))
+                                                     messages: []))
             }
         case .decline: requestList[i].state = .declined
         case .withdraw: requestList[i].state = .withdrawn

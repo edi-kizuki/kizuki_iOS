@@ -3,6 +3,79 @@ import XCTest
 /// Clicks through the fixture-backed prototype: entry, onboarding, every tab, and
 /// request → accept → Crew → chat. No backend is involved.
 final class PrototypeFlowUITests: XCTestCase {
+    @MainActor func testFeedPromptsOpenDraftRequestsAndProfileEditor() {
+        let app = launch(["-fixtures", "-screen", "home"])
+        let draft = app.buttons["feed-prompt-draft"]
+        XCTAssertTrue(draft.waitForExistence(timeout: 8))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Floating-feed-prompts"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        draft.tap()
+        XCTAssertTrue(app.navigationBars["Your project"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.firstMatch.tap()
+        app.scrollViews["feed-prompts"].swipeLeft()
+        let requests = app.buttons["feed-prompt-requests"]
+        XCTAssertTrue(requests.isHittable)
+        requests.tap()
+        XCTAssertTrue(app.tabBars.buttons["Suki"].isSelected)
+        XCTAssertTrue(app.segmentedControls.buttons["Requests"].isSelected)
+        XCTAssertTrue(app.segmentedControls.buttons["Incoming"].isSelected)
+        app.tabBars.buttons["Home"].tap()
+        let profile = app.buttons["feed-prompt-profile"]
+        for _ in 0..<3 {
+            if profile.isHittable && profile.frame.maxX <= app.frame.maxX { break }
+            app.scrollViews["feed-prompts"].swipeLeft()
+        }
+        XCTAssertTrue(profile.isHittable)
+        profile.tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testFeedPromptsStackAtAccessibilitySize() {
+        let app = launch(["-fixtures", "-screen", "home", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXL"])
+        let draft = app.buttons["feed-prompt-draft"]
+        let requests = app.buttons["feed-prompt-requests"]
+        XCTAssertTrue(draft.waitForExistence(timeout: 8))
+        XCTAssertFalse(app.scrollViews["feed-prompts"].exists)
+        XCTAssertGreaterThanOrEqual(draft.frame.minX, 10)
+        XCTAssertLessThanOrEqual(draft.frame.maxX, app.frame.maxX - 10)
+        for _ in 0..<6 {
+            if requests.isHittable && requests.frame.maxY < app.tabBars.firstMatch.frame.minY { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(requests.isHittable)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Floating-feed-prompts-accessibility"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        requests.tap()
+        XCTAssertTrue(app.segmentedControls.buttons["Incoming"].isSelected)
+    }
+
+    @MainActor func testFloatingCardsAtDefaultAndAccessibilitySizes() {
+        for size in ["UICTContentSizeCategoryL", "UICTContentSizeCategoryAccessibilityXL"] {
+            for screen in ["suki-requests", "suki-create", "my-projects"] {
+                let app = launch(["-fixtures", "-screen", screen, "-UIPreferredContentSizeCategoryName", size])
+                let action: XCUIElement
+                switch screen {
+                case "suki-requests": action = app.buttons["Accept"].firstMatch
+                case "suki-create": action = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Create a project")).firstMatch
+                default: action = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Blue hour")).firstMatch
+                }
+                XCTAssertTrue(action.waitForExistence(timeout: 8))
+                XCTAssertTrue(action.isHittable)
+                XCTAssertGreaterThanOrEqual(action.frame.minX, 10)
+                XCTAssertLessThanOrEqual(action.frame.maxX, app.frame.maxX - 10)
+                let screenshot = XCTAttachment(screenshot: app.screenshot())
+                screenshot.name = "Floating-\(screen)-\(size)"
+                screenshot.lifetime = .keepAlways
+                add(screenshot)
+                app.terminate()
+            }
+        }
+    }
+
     @MainActor func testOptionalWidgetsRetainLinksWhenTurnedOff() {
         let app = launch(["-fixtures", "-screen", "profile-edit"])
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 8))
@@ -137,32 +210,47 @@ final class PrototypeFlowUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["I’m available to collab"].exists)
     }
 
-    @MainActor func testHeaderExperimentKeepsTabNavigationAndActions() {
-        let app = launch(["-fixtures", "-screen", "settings"])
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 8))
-        app.segmentedControls.buttons["Minimal"].tap()
-        app.navigationBars["Settings"].buttons.firstMatch.tap()
-        for label in ["Search", "Suki", "My Projects", "Profile"] {
+    @MainActor func testFeedOwnsInboxAndProfileOwnsSettings() {
+        let app = launch(["-fixtures", "-screen", "home"])
+        XCTAssertTrue(button(app, "Messages").waitForExistence(timeout: 8))
+        XCTAssertFalse(button(app, "Settings").exists)
+        button(app, "Messages").tap()
+        XCTAssertTrue(app.navigationBars["Messages"].waitForExistence(timeout: 5))
+        app.navigationBars["Messages"].buttons.firstMatch.tap()
+        for label in ["Search", "Suki", "My Projects"] {
             app.tabBars.buttons[label].tap()
             XCTAssertTrue(app.tabBars.buttons[label].isSelected)
-            XCTAssertTrue(app.descendants(matching: .any)["tab-header-minimal"].exists)
-            XCTAssertFalse(app.descendants(matching: .any)["tab-header-symbol"].exists)
-            XCTAssertTrue(button(app, "Settings").isHittable)
-            XCTAssertTrue(button(app, "Messages").isHittable)
-        }
-        button(app, "Settings").tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
-        app.segmentedControls.buttons["Symbols"].tap()
-        app.navigationBars["Settings"].buttons.firstMatch.tap()
-        for label in ["Profile", "Search", "Suki", "My Projects"] {
-            app.tabBars.buttons[label].tap()
-            XCTAssertTrue(app.descendants(matching: .any)["tab-header-symbol"].exists)
             XCTAssertFalse(app.descendants(matching: .any)["tab-header-minimal"].exists)
-            XCTAssertTrue(button(app, "Settings").isHittable)
-            XCTAssertTrue(button(app, "Messages").isHittable)
+            XCTAssertFalse(app.descendants(matching: .any)["tab-header-symbol"].exists)
+            XCTAssertFalse(button(app, "Settings").exists)
+            XCTAssertFalse(button(app, "Messages").exists)
+            if label == "Search" { XCTAssertLessThan(app.textFields["Search photos & videos"].frame.minY, 120) }
         }
-        button(app, "Settings").tap()
-        app.segmentedControls.buttons["Minimal"].tap()
+        app.tabBars.buttons["Profile"].tap()
+        XCTAssertFalse(button(app, "Messages").exists)
+        let settings = button(app, "Settings")
+        XCTAssertTrue(settings.isHittable)
+        XCTAssertGreaterThan(settings.frame.maxX, app.frame.maxX - 40)
+        XCTAssertLessThan(settings.frame.minY, 130)
+        settings.tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.segmentedControls.buttons["Symbols"].exists)
+        app.navigationBars["Settings"].buttons.firstMatch.tap()
+        XCTAssertTrue(app.tabBars.buttons["Profile"].isSelected)
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testProfileMenuAtLargestTextSize() {
+        let app = launch(["-fixtures", "-screen", "profile", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let settings = button(app, "Settings")
+        XCTAssertTrue(settings.waitForExistence(timeout: 8))
+        XCTAssertTrue(settings.isHittable)
+        XCTAssertGreaterThanOrEqual(settings.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
+        XCTAssertFalse(button(app, "Messages").exists)
+        settings.tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
     }
 
     @MainActor func testDebugDefaultAndTabBarAccessibilityScreenshots() {
@@ -222,6 +310,22 @@ final class PrototypeFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Emil Sander"].waitForExistence(timeout: 8))
         button(app, "Accept").tap()
         // Accepting opens the chat with the new Crew member.
+        XCTAssertTrue(app.textFields["Message Emil"].waitForExistence(timeout: 5))
+        button(app, "Back").tap()
+        app.tabBars.buttons["Home"].tap()
+        let greeting = app.buttons["feed-prompt-crew"]
+        XCTAssertTrue(greeting.waitForExistence(timeout: 5))
+        for _ in 0..<4 {
+            let frame = greeting.frame
+            if frame.width > 0 && frame.minX >= 0 && frame.maxX <= app.frame.maxX { break }
+            app.scrollViews["feed-prompts"].swipeLeft()
+        }
+        XCTAssertTrue(greeting.isHittable)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Feed-new-Crew-prompt"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        greeting.tap()
         XCTAssertTrue(app.textFields["Message Emil"].waitForExistence(timeout: 5))
         let field = app.textFields["Message Emil"]
         field.tap(); field.typeText("Hello from the test")

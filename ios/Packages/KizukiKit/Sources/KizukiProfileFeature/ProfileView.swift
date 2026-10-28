@@ -11,13 +11,11 @@ public struct ProfileView: View {
     let embedsInTab: Bool
     @State private var confirmingRemoval = false
 
-    /// `embedsInTab` is true for the Profile tab root (shows the top bar), false when pushed.
     public init(personID: UUID, embedsInTab: Bool = false) { self.personID = personID; self.embedsInTab = embedsInTab }
 
     public var body: some View {
         let isMe = personID == store.me.id
         VStack(spacing: 0) {
-            if embedsInTab { KizukiTopBar(title: "Profile", symbol: .tabProfile, onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) }) }
             if let person = store.person(personID), isMe || !store.isBlocked(personID) {
                 PageScroll(spacing: 20) { content(person, isMe: isMe) }
                     .navigationTitle(isMe ? "" : person.name).navigationBarTitleDisplayMode(.inline)
@@ -51,6 +49,14 @@ public struct ProfileView: View {
             .overlay { LinearGradient(colors: [.clear, KizukiTheme.charcoal], startPoint: .top, endPoint: .bottom) }
             .padding(.horizontal, -20).padding(.top, -20).padding(.bottom, -44)
             .accessibilityHidden(true)
+            .overlay(alignment: .topTrailing) {
+                if isMe && embedsInTab {
+                    KizukiIconButton(symbol: "line.3.horizontal", label: "Settings") { router.push(.settings) }
+                        .background(KizukiTheme.charcoal.opacity(0.88), in: RoundedRectangle(cornerRadius: 12))
+                        .accessibilityHint("Opens your profile settings")
+                        .padding(.top, -8)
+                }
+            }
         let identityLayout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16)) : AnyLayout(HStackLayout(alignment: .center, spacing: 16))
         identityLayout {
             PersonAvatar(person.id, size: 92, portraitAsset: person.portraitAsset)
@@ -90,7 +96,7 @@ public struct ProfileView: View {
                 Text("Everyone sees your availability. Only you see work mode and pay preference.").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading).kizukiPanel()
+        .frame(maxWidth: .infinity, alignment: .leading).kizukiPanel(edgeToEdge: true).padding(.horizontal, -20)
         .accessibilityElement(children: .combine)
         }
         let favourites = isMe ? (store.own.showFavourites ? Array(store.own.favourites).sorted() : []) : person.favourites
@@ -100,7 +106,7 @@ public struct ProfileView: View {
         }
         if !person.visibleLinks.isEmpty {
             SectionTitle("Work")
-            ForEach(person.visibleLinks) { EmbedCard(link: $0) }
+            ForEach(person.visibleLinks) { EmbedCard(link: $0, edgeToEdge: true).padding(.horizontal, -20) }
         }
         let photos = store.visiblePhotos.filter { $0.authorID == person.id }
         SectionTitle("Collabs")
@@ -113,6 +119,7 @@ public struct ProfileView: View {
                         .buttonStyle(.plain).accessibilityLabel(photo.isVideo ? "Short video, \(photo.durationLabel ?? ""): \(photo.caption)" : "Collab photo: \(photo.caption)")
                 }
             }
+            .padding(.horizontal, -20)
         }
     }
 
@@ -169,6 +176,7 @@ struct GetDiscoveredCard: View {
 /// Validated portfolio destination; external links until consent-gated players are integrated.
 struct EmbedCard: View {
     let link: ProfileLink
+    var edgeToEdge = false
     var body: some View {
         let descriptor = PortfolioWidgetDescriptor(link: link)
         VStack(alignment: .leading, spacing: 0) {
@@ -194,7 +202,7 @@ struct EmbedCard: View {
             }
             .padding(12).background(KizukiTheme.grey)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: edgeToEdge ? 0 : 10))
     }
 }
 
