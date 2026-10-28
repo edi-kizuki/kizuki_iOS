@@ -31,20 +31,25 @@ public struct MyProjectsView: View {
                     ForEach(list) { project in
                         Button { router.push(.project(project.id)) } label: {
                             HStack(spacing: 14) {
-                                Artwork(seed: project.artSeed, height: 104).frame(width: 96).clipped()
+                                Artwork(seed: project.artSeed, height: 100).frame(width: 88)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .accessibilityHidden(true)
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text(project.title).font(KizukiTheme.title(24)).lineLimit(1)
+                                    Text(project.title).font(KizukiTheme.title(24)).fixedSize(horizontal: false, vertical: true)
                                     Text("\(project.realm.rawValue) · \(project.status.rawValue)").font(KizukiTheme.mono(11)).foregroundStyle(KizukiTheme.babyBlueIcons)
                                     if !store.isOwner(project) { Text("Joined").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.blue) }
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right").foregroundStyle(KizukiTheme.babyBlueIcons)
-                                    .padding(.trailing, KizukiTheme.pageInset)
+                                    .font(.system(size: 14, weight: .medium))
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(KizukiTheme.grey.opacity(0.5))
+                            .kizukiFloatingCard(padding: KizukiTheme.cardInset)
+                            .contentShape(RoundedRectangle(cornerRadius: KizukiTheme.cardRadius, style: .continuous))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Open project, \(project.title), \(project.realm.rawValue), \(project.status.rawValue)\(store.isOwner(project) ? "" : ", Joined")")
+                        .padding(.horizontal, KizukiTheme.floatingCardInset)
                     }
                 }
             }

@@ -265,6 +265,15 @@ public struct PersonRow: View {
 }
 
 public extension View {
+    func kizukiFloatingCard(padding contentPadding: CGFloat = KizukiTheme.pageInset, fill: Color = KizukiTheme.surface) -> some View {
+        let shape = RoundedRectangle(cornerRadius: KizukiTheme.cardRadius, style: .continuous)
+        return padding(contentPadding)
+            .background(fill, in: shape)
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(KizukiTheme.cream.opacity(0.08), lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.16), radius: 8, x: 0, y: 4)
+    }
+
     func kizukiPanel(edgeToEdge: Bool = false) -> some View {
         let radius = edgeToEdge ? 0 : KizukiTheme.cardRadius
         return padding(edgeToEdge ? KizukiTheme.pageInset : KizukiTheme.cardInset)

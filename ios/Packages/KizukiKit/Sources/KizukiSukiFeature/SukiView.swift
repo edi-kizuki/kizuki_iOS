@@ -53,19 +53,13 @@ public struct SukiView: View {
             SukiEmptyState(title: "Your Crew starts with a yes", message: "Accepted requests land here, with a chat.")
                 .padding(.horizontal, KizukiTheme.pageInset)
         }
-        VStack(spacing: 0) {
-            ForEach(store.crew) { person in
-                CrewCard(person: person,
-                         onMessage: { router.push(.conversation(person.id)) },
-                         onProfile: { router.push(.profile(person.id)) },
-                         onRemove: { removing = person })
-                if person.id != store.crew.last?.id {
-                    Rectangle().fill(KizukiTheme.border).frame(height: 0.5)
-                        .padding(.horizontal, KizukiTheme.pageInset)
-                }
-            }
+        ForEach(store.crew) { person in
+            CrewCard(person: person,
+                     onMessage: { router.push(.conversation(person.id)) },
+                     onProfile: { router.push(.profile(person.id)) },
+                     onRemove: { removing = person })
+                .padding(.horizontal, KizukiTheme.floatingCardInset)
         }
-        .background(KizukiTheme.surface)
     }
 
     // MARK: Requests
@@ -91,25 +85,38 @@ public struct SukiView: View {
                     Text(request.kind.label.uppercased()).font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.orange)
                     if let project = request.projectID.flatMap(store.project) { Text(project.title).font(KizukiTheme.title(22)) }
                     else { Text(direction == .incoming ? "\(person.firstName) wishes to collab" : "You wished to collab").font(KizukiTheme.title(22)) }
-                    HStack {
-                        stateBadge(request.state)
-                        Spacer()
-                        if request.state == .pending {
-                            if direction == .incoming {
-                                Button("Decline") { Task { await store.respond(to: request.id, with: .decline) } }
-                                    .buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
-                                Button("Accept") { accept(request) }.buttonStyle(.borderedProminent).tint(KizukiTheme.blue).frame(minHeight: 44)
-                            } else {
-                                Button("Withdraw") { Task { await store.respond(to: request.id, with: .withdraw) } }
-                                    .buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
-                            }
-                        } else if request.state == .accepted {
-                            Button("Open chat") { router.push(.conversation(person.id)) }.buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
-                        }
+                    ViewThatFits(in: .horizontal) {
+                        requestActions(request, person: person, stacked: false)
+                        requestActions(request, person: person, stacked: true)
                     }
                 }
-                .kizukiPanel(edgeToEdge: true)
+                .kizukiFloatingCard()
+                .padding(.horizontal, KizukiTheme.floatingCardInset)
             }
+        }
+    }
+
+    private func requestActions(_ request: CollabRequest, person: Person, stacked: Bool) -> some View {
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(spacing: 8))
+        let actions = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+        return layout {
+            stateBadge(request.state)
+            if !stacked { Spacer(minLength: 8) }
+            actions {
+                if request.state == .pending {
+                    if request.direction == .incoming {
+                        Button("Decline") { Task { await store.respond(to: request.id, with: .decline) } }
+                            .buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
+                        Button("Accept") { accept(request) }.buttonStyle(.borderedProminent).tint(KizukiTheme.blue).frame(minHeight: 44)
+                    } else {
+                        Button("Withdraw") { Task { await store.respond(to: request.id, with: .withdraw) } }
+                            .buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
+                    }
+                } else if request.state == .accepted {
+                    Button("Open chat") { router.push(.conversation(person.id)) }.buttonStyle(.bordered).tint(KizukiTheme.babyBlue).frame(minHeight: 44)
+                }
+            }
+            .fixedSize(horizontal: !stacked, vertical: true)
         }
     }
 
@@ -150,9 +157,10 @@ public struct SukiView: View {
                 Spacer()
                 Image(systemName: symbol).font(.system(size: 26)).foregroundStyle(KizukiTheme.blue)
             }
-            .frame(maxWidth: .infinity, minHeight: 78).kizukiPanel(edgeToEdge: true)
+            .frame(maxWidth: .infinity, minHeight: 78).kizukiFloatingCard()
         }
         .buttonStyle(.plain)
+        .padding(.horizontal, KizukiTheme.floatingCardInset)
     }
 }
 
@@ -204,9 +212,8 @@ struct CrewCard: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(KizukiTheme.pageInset)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(KizukiTheme.surface)
+        .kizukiFloatingCard()
     }
 }
 

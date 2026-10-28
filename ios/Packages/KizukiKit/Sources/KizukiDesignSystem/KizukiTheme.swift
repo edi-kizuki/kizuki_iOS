@@ -22,6 +22,7 @@ public enum KizukiTheme {
     public static let spacing: CGFloat = 24
     public static let pageInset: CGFloat = 20
     public static let cardInset: CGFloat = 16
+    public static let floatingCardInset: CGFloat = 12
     public static let sectionGap: CGFloat = 24
     public static let border = babyBlueIcons.opacity(0.35)
 
