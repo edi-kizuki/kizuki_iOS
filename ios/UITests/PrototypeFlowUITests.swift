@@ -3,10 +3,22 @@ import XCTest
 /// Clicks through the fixture-backed prototype: entry, onboarding, every tab, and
 /// request → accept → Crew → chat. No backend is involved.
 final class PrototypeFlowUITests: XCTestCase {
+    @MainActor private func revealFeedBanner(_ banner: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<30 {
+            let frame = banner.frame
+            let bottom = app.tabBars.firstMatch.frame.minY
+            if frame.height > 0 && frame.minY > 130 && frame.maxY < bottom && banner.isHittable { return }
+            app.scrollViews["feed-scroll"].swipeUp(velocity: .slow)
+        }
+        XCTFail("Feed banner not reachable")
+    }
+
     @MainActor func testFeedPromptsOpenDraftRequestsAndProfileEditor() {
         let app = launch(["-fixtures", "-screen", "home"])
         let draft = app.buttons["feed-prompt-draft"]
         XCTAssertTrue(draft.waitForExistence(timeout: 8))
+        XCTAssertFalse(app.staticTexts["Your next move"].exists)
+        XCTAssertLessThan(draft.frame.height, 100)
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Floating-feed-prompts"
         screenshot.lifetime = .keepAlways
@@ -14,8 +26,8 @@ final class PrototypeFlowUITests: XCTestCase {
         draft.tap()
         XCTAssertTrue(app.navigationBars["Your project"].waitForExistence(timeout: 5))
         app.navigationBars.buttons.firstMatch.tap()
-        app.scrollViews["feed-prompts"].swipeLeft()
         let requests = app.buttons["feed-prompt-requests"]
+        revealFeedBanner(requests, in: app)
         XCTAssertTrue(requests.isHittable)
         requests.tap()
         XCTAssertTrue(app.tabBars.buttons["Suki"].isSelected)
@@ -23,10 +35,7 @@ final class PrototypeFlowUITests: XCTestCase {
         XCTAssertTrue(app.segmentedControls.buttons["Incoming"].isSelected)
         app.tabBars.buttons["Home"].tap()
         let profile = app.buttons["feed-prompt-profile"]
-        for _ in 0..<3 {
-            if profile.isHittable && profile.frame.maxX <= app.frame.maxX { break }
-            app.scrollViews["feed-prompts"].swipeLeft()
-        }
+        revealFeedBanner(profile, in: app)
         XCTAssertTrue(profile.isHittable)
         profile.tap()
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
@@ -38,12 +47,10 @@ final class PrototypeFlowUITests: XCTestCase {
         let requests = app.buttons["feed-prompt-requests"]
         XCTAssertTrue(draft.waitForExistence(timeout: 8))
         XCTAssertFalse(app.scrollViews["feed-prompts"].exists)
+        XCTAssertFalse(app.staticTexts["Your next move"].exists)
         XCTAssertGreaterThanOrEqual(draft.frame.minX, 10)
         XCTAssertLessThanOrEqual(draft.frame.maxX, app.frame.maxX - 10)
-        for _ in 0..<6 {
-            if requests.isHittable && requests.frame.maxY < app.tabBars.firstMatch.frame.minY { break }
-            app.swipeUp()
-        }
+        revealFeedBanner(requests, in: app)
         XCTAssertTrue(requests.isHittable)
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Floating-feed-prompts-accessibility"
@@ -315,11 +322,7 @@ final class PrototypeFlowUITests: XCTestCase {
         app.tabBars.buttons["Home"].tap()
         let greeting = app.buttons["feed-prompt-crew"]
         XCTAssertTrue(greeting.waitForExistence(timeout: 5))
-        for _ in 0..<4 {
-            let frame = greeting.frame
-            if frame.width > 0 && frame.minX >= 0 && frame.maxX <= app.frame.maxX { break }
-            app.scrollViews["feed-prompts"].swipeLeft()
-        }
+        revealFeedBanner(greeting, in: app)
         XCTAssertTrue(greeting.isHittable)
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Feed-new-Crew-prompt"

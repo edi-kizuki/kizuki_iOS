@@ -14,7 +14,7 @@ public struct HomeView: View {
             KizukiTopBar(onInbox: { router.push(.inbox) })
             ScrollView {
                 VStack(spacing: 20) {
-                    nextSteps
+                    if let prompt = store.feedPrompts.first { promptBanner(prompt) }
                     VStack(alignment: .leading, spacing: 16) {
                         SectionTitle("Recommended projects")
                         if store.visibleProjectRecommendations.isEmpty {
@@ -29,6 +29,7 @@ public struct HomeView: View {
                         }
                     }
                     .kizukiCard().padding(.horizontal, 12)
+                    if store.feedPrompts.count > 1 { promptBanner(store.feedPrompts[1]) }
                     VStack(alignment: .leading, spacing: 16) {
                         SectionTitle("People that you might like")
                         if store.visiblePeopleRecommendations.isEmpty {
@@ -50,93 +51,52 @@ public struct HomeView: View {
                         }
                     }
                     .kizukiCard().padding(.horizontal, 12)
+                    ForEach(Array(store.feedPrompts.dropFirst(2))) { promptBanner($0) }
                 }
                 .padding(.vertical, 20)
             }
+            .accessibilityIdentifier("feed-scroll")
             .background(KizukiTheme.babyBlue)
         }
         .background(KizukiTheme.charcoal)
     }
 
-    @ViewBuilder private var nextSteps: some View {
-        if !store.feedPrompts.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Your next move").font(KizukiTheme.title(26)).accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    Text("\(store.feedPrompts.count)").font(KizukiTheme.mono(12))
-                        .accessibilityLabel("\(store.feedPrompts.count) suggestions")
-                }
-                .foregroundStyle(KizukiTheme.charcoal)
-                .padding(.horizontal, KizukiTheme.pageInset)
-                if dynamicTypeSize.isAccessibilitySize {
-                    VStack(spacing: 12) {
-                        ForEach(store.feedPrompts) { promptCard($0) }
-                    }
-                    .padding(.horizontal, KizukiTheme.floatingCardInset)
-                } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(alignment: .top, spacing: 12) {
-                            ForEach(store.feedPrompts) { prompt in
-                                promptCard(prompt)
-                                    .containerRelativeFrame(.horizontal) { availableWidth, _ in
-                                        min(availableWidth - 44, 340)
-                                    }
-                            }
-                        }
-                        .scrollTargetLayout()
-                        .padding(.vertical, 8)
-                    }
-                    .contentMargins(.horizontal, KizukiTheme.floatingCardInset, for: .scrollContent)
-                    .scrollTargetBehavior(.viewAligned)
-                    .accessibilityIdentifier("feed-prompts")
-                }
-            }
-        }
-    }
-
-    private func promptCard(_ prompt: AppStore.FeedPrompt) -> some View {
+    private func promptBanner(_ prompt: AppStore.FeedPrompt) -> some View {
         let content = promptContent(prompt)
         return Button { open(prompt) } label: {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: content.symbol).font(.system(size: 20))
-                        .frame(width: 40, height: 40)
-                        .background(content.tint.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
-                        .foregroundStyle(content.tint).accessibilityHidden(true)
-                    Spacer()
-                    Text(content.category).font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons)
+            HStack(spacing: 12) {
+                Image(systemName: content.symbol).font(.system(size: 18))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(content.title).font(KizukiTheme.bodyMedium(15))
+                    Text(content.detail).font(KizukiTheme.body(13))
                 }
-                Text(content.title).font(KizukiTheme.title(26))
-                Text(content.detail).font(KizukiTheme.body(14)).foregroundStyle(KizukiTheme.babyBlueIcons)
-                    .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 0 : 40, alignment: .topLeading)
-                HStack {
-                    Text(content.action).font(KizukiTheme.mono(12))
-                    Spacer()
-                    Image(systemName: "arrow.right").accessibilityHidden(true)
-                }
-                .frame(minHeight: 44)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .medium))
+                    .accessibilityHidden(true)
             }
             .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .foregroundStyle(KizukiTheme.cream)
-            .kizukiFloatingCard(fill: KizukiTheme.charcoal)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .padding(.horizontal, 16).padding(.vertical, 10)
+            .foregroundStyle(KizukiTheme.charcoal)
+            .background(KizukiTheme.babyBlueIcons, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("feed-prompt-\(prompt.id)")
         .accessibilityHint(content.action)
+        .padding(.horizontal, KizukiTheme.floatingCardInset)
     }
 
-    private func promptContent(_ prompt: AppStore.FeedPrompt) -> (category: String, title: String, detail: String, action: String, symbol: String, tint: Color) {
+    private func promptContent(_ prompt: AppStore.FeedPrompt) -> (title: String, detail: String, action: String, symbol: String) {
         switch prompt {
         case .finishProject(let id):
-            ("YOUR DRAFT", "Finish your project", "Give “\(store.project(id)?.title ?? "your project")” a few finishing touches.", "Continue draft", "pencil.and.outline", KizukiTheme.blue)
+            ("Finish your project", store.project(id)?.title ?? "Pick up where you left off.", "Continue draft", "pencil.and.outline")
         case .reviewRequests(let count):
-            ("CONNECTIONS", "A collab could start here", "\(count) \(count == 1 ? "request is" : "requests are") waiting for your reply.", "Review requests", "person.badge.plus", KizukiTheme.yellow)
+            ("\(count) collab \(count == 1 ? "request" : "requests")", "See who wants to make something with you.", "Review requests", "person.badge.plus")
         case .completeProfile:
-            ("ABOUT YOU", "Let people get to know you", "\(store.discoveryDoneCount) of \(store.discoverySteps.count) basics complete. Add a little about yourself.", "Finish profile", "person.crop.circle", KizukiTheme.orange)
+            ("A little more about you", "Finish your profile so people can get to know you.", "Finish profile", "person.crop.circle")
         case .startConversation(let id):
-            ("YOUR CREW", "Every collab starts with hello", "You and \(store.person(id)?.firstName ?? "your new connection") are in each other’s Crew. Start a conversation.", "Say hello", "bubble.left.and.bubble.right", KizukiTheme.salmon)
+            ("Say hello to \(store.person(id)?.firstName ?? "your new connection")", "Start a conversation with your new Crew connection.", "Say hello", "bubble.left.and.bubble.right")
         }
     }
 

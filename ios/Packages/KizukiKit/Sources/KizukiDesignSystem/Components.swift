@@ -233,6 +233,7 @@ public struct KizukiTopBar: View {
     public var body: some View {
         HStack {
             KizukiIcon.feedLogo.image.resizable().scaledToFit().frame(width: 22, height: 42.2346)
+                .foregroundStyle(KizukiTheme.yellow)
                 .padding(.leading, 5.5).offset(y: -3).accessibilityLabel("Kizuki").accessibilityAddTraits(.isHeader)
             Spacer()
             KizukiIconButton(icon: .messages, label: "Messages", action: onInbox).offset(y: 7)

@@ -443,6 +443,19 @@ struct PrototypeStoreTests {
         #expect(KizukiIcon.allCases.count == 11)
     }
 
+    @Test func conceptEightBrandAssetsKeepTheirExportedProportions() throws {
+        let mark = try #require(KizukiIcon.kMark.uiImage)
+        let feed = try #require(KizukiIcon.feedLogo.uiImage)
+        let wordmark = try #require(KizukiIcon.wordmark.uiImage)
+        #expect(abs(mark.size.width / mark.size.height - 103.0 / 195.0) < 0.01)
+        #expect(abs(wordmark.size.width / wordmark.size.height - 464.0 / 195.0) < 0.01)
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 103, height: 195))
+        let bounds = CGRect(x: 0, y: 0, width: 103, height: 195)
+        let markData = renderer.pngData { _ in mark.withRenderingMode(.alwaysOriginal).draw(in: bounds) }
+        let feedData = renderer.pngData { _ in feed.withRenderingMode(.alwaysOriginal).draw(in: bounds) }
+        #expect(markData == feedData)
+    }
+
     @Test func figmaFontsAndIllustrationsShipWithoutFallbacks() {
         KizukiFonts.register()
         for weight in KizukiTheme.PoppinsWeight.allCases {

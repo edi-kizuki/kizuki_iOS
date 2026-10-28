@@ -25,13 +25,19 @@ Crew cards use larger avatars, the shared bold body type, the existing outlined 
 
 The user asked for cards closer to Feed and the rounded, floating feel of iOS 26. Crew, incoming/sent Requests, Create choices, and all My Projects sections (Drafts, Published, Past) share a 20-point continuous corner radius, 12-point outer gutters, a subtle border and soft shadow. This is a shared opaque content surface, not a custom glass imitation. Backgrounds remain edge-to-edge. Feed project thumbnails also retain rounded card corners. Request actions stack when horizontal space is insufficient; project titles wrap rather than truncate.
 
-Feed now has a “Your next move” carousel with four state-driven prompt types:
+The initial “Your next move” carousel is superseded by compact, muted-blue inline banners. There is no section heading, counter, horizontal prompt carousel, category label, or separate CTA row. One banner appears before the recommendations; remaining applicable banners sit between/after feed sections. Small body text, a leading symbol and trailing chevron keep the prompt secondary to the content. Text wraps at accessibility sizes. The four state-driven prompt types remain:
 - Finish an owned draft: opens that project. Any collaborating user with a draft can resume it, regardless of their original start/join intent.
 - Review incoming pending requests: opens Suki → Requests → Incoming and resets stale detail navigation.
 - Finish profile basics: opens Edit profile and disappears once the existing completion rules are satisfied.
 - Say hello to a Crew connection with an empty conversation: opens that chat and disappears after a message. Fixture request acceptance no longer inserts a fabricated message on the user's behalf.
 
-Only applicable prompts appear. Blocked people and resolved requests are excluded. Inspiration-only users do not receive collaboration prompts. No unread status, freshness, deadlines or urgency is invented. Accessibility text sizes use a vertical prompt list instead of a horizontal carousel. These are Debug/local screens backed by repository state, not a live notification service.
+Only applicable prompts appear. Blocked people and resolved requests are excluded. Inspiration-only users do not receive collaboration prompts. No unread status, freshness, deadlines or urgency is invented. These are Debug/local screens backed by repository state, not a live notification service.
+
+### Brand correction — October 28
+
+The user-selected logo is Playground (Copy), `concept_8`, node `570:2`, not the later `concept_8.6`. The exported mascot K is shared by Feed and the splash; the wordmark replaces the typed brand in the foundation screen. Feed uses palette yellow `#EBAF41`. The app icon uses the matching `570:178` artwork on a full-bleed cream tile, with yellow-on-charcoal dark and monochrome tinted variants; iOS supplies the corner mask. Other illustrations, provider logos and tab icons are unchanged. Source and regeneration: [[README]] in `docs/design/icons/`.
+
+Verification: 89 unit tests and three focused UI tests passed, including all four banner destinations and accessibility-XL text. The source-ratio/identical-mark test covers the new vector assets. Ten configuration tests, the Staging build and artifact inspection passed. All three app-icon PNGs are 1024 × 1024 without alpha. Feed default/accessibility screenshots were inspected. The full UI suite was not rerun; this does not verify live backend features.
 
 Floating-card verification: 88 unit tests passed. Seven targeted UI tests passed across the final focused runs, covering all prompt destinations, request acceptance → first message, tab navigation ownership, Crew controls, request types, and normal/accessibility-XL cards. Default and accessibility screenshots were inspected for Feed, Crew, Requests, Create and My Projects. Project thumbnails are decorative inside explicitly labelled project buttons, keeping accessibility targets inside the visible card. Ten release-configuration tests and the Staging build/artifact check passed. The full UI suite was not rerun.
 

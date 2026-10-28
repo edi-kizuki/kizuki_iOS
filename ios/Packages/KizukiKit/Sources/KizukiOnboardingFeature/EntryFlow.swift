@@ -103,7 +103,7 @@ public struct EntryFlow: View {
     private var splash: some View {
         VStack(spacing: 12) {
             Spacer()
-            KizukiIllustration.onboardingCrest.image.resizable().scaledToFit().frame(width: 138, height: 188).foregroundStyle(KizukiTheme.charcoal)
+            KizukiIcon.kMark.image.resizable().scaledToFit().frame(width: 100, height: 188).foregroundStyle(KizukiTheme.charcoal)
                 .accessibilityLabel("Kizuki")
             Spacer()
         }
