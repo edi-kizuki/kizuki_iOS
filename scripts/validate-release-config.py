@@ -1,9 +1,5 @@
 """Fail archives closed without printing URLs or keys."""
-import base64
-import json
 import os
-import re
-from urllib.parse import urlsplit
 
 
 def validate(values):

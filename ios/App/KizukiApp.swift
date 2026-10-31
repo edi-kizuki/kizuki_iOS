@@ -26,7 +26,7 @@ struct KizukiApp: App {
         // Fixtures use no credential; only their environment and URL are checked here.
         do {
             let values = Bundle.main.infoDictionary?.compactMapValues { $0 as? String } ?? [:]
-            guard let environment = AppEnvironment(rawValue: values["KizukiEnvironment"] ?? "") else {
+            guard let environment = AppEnvironment(rawValue: arguments.contains("--ui-testing-refused") ? "production" : values["KizukiEnvironment"] ?? "") else {
                 throw ConfigurationError.invalidEnvironment
             }
             _ = try AppConfiguration(environment: environment, url: values["SupabaseURL"] ?? "",

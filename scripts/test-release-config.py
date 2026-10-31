@@ -79,6 +79,23 @@ class ReleaseConfigurationTests(unittest.TestCase):
                     "https://ankgfqkgflcalmlreetu.supabase.co:8443", ""]:
             with self.subTest(url=url), self.assertRaises(ValueError): module.validate(self.staging(SUPABASE_URL=url))
 
+    def test_G16_A3_matrix_and_JWT_ref(self):
+        import base64
+        import json
+        host = "ankgfqkgflcalmlreetu.supabase.co"
+        for url in ["https://unapproved-review-probe.supabase.co", "https://" + host + ".",
+                    "https://" + host + ":443", "https://" + host + "/path", "https://" + host + "?x=1",
+                    "https://" + host + "#fragment", "https://" + host + "@evil.test",
+                    "https://аnkgfqkgflcalmlreetu.supabase.co", "https://" + host + "/"]:
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                module.validate(self.staging(SUPABASE_URL=url))
+        for ref in ["ankgfqkgflcalmlreetu", DENIED_REFS[0], "other"]:
+            payload = base64.urlsafe_b64encode(json.dumps(dict(role="anon", ref=ref)).encode()).decode().rstrip("=")
+            values = self.staging(SUPABASE_PUBLISHABLE_KEY="header." + payload + ".signature")
+            if ref == "ankgfqkgflcalmlreetu": module.validate(values)
+            else:
+                with self.assertRaises(ValueError): module.validate(values)
+
     def test_one_app_identity_for_staging_and_production(self):
         module.validate(self.staging(PRODUCT_BUNDLE_IDENTIFIER="club.kizuki.ios"))
         for bundle in ["club.kizuki.ios.staging", "club.kizuki.ios.local", ""]:
