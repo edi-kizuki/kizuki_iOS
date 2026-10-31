@@ -32,13 +32,13 @@ struct ConfigurationTests {
                       "https://xankgfqkgflcalmlreetu.supabase.co", "http://ankgfqkgflcalmlreetu.supabase.co",
                       "https://ankgfqkgflcalmlreetu.supabase.co:8443", "http://127.0.0.1:54321"])
     func stagingRejectsEveryOtherHost(_ url: String) {
-        #expect(throws: ConfigurationError.unsafeEnvironment) {
+        #expect(throws: ConfigurationError.backendDenied) {
             try AppConfiguration(environment: .staging, url: url, publishableKey: key)
         }
     }
 
     @Test func stagingCannotTargetProduction() {
-        #expect(throws: ConfigurationError.unsafeEnvironment) {
+        #expect(throws: ConfigurationError.backendDenied) {
             try AppConfiguration(environment: .staging, url: "https://enosggckdxjiaqtxalhg.supabase.co", publishableKey: key)
         }
     }
@@ -67,13 +67,13 @@ struct ConfigurationTests {
     @Test(arguments: ["https://other.supabase.co", "https://ankgfqkgflcalmlreetu.supabase.co.evil.test",
                       "https://enosggckdxjiaqtxalhg.supabase.co"])
     func stagingIsExactlyPinned(_ url: String) {
-        #expect(throws: ConfigurationError.unsafeEnvironment) {
+        #expect(throws: ConfigurationError.backendDenied) {
             try AppConfiguration(environment: .staging, url: url, publishableKey: key)
         }
     }
 
     @Test func productionIsRefusedEvenWithApprovedHost() {
-        #expect(throws: ConfigurationError.unsafeEnvironment) {
+        #expect(throws: ConfigurationError.productionDisabled) {
             try AppConfiguration(environment: .production, url: "https://enosggckdxjiaqtxalhg.supabase.co", publishableKey: key)
         }
     }

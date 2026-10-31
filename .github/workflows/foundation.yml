@@ -10,6 +10,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 30
     steps:
+      - run: test -z "${SUPABASE_ACCESS_TOKEN+x}"
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -37,10 +38,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - run: test -z "${SUPABASE_ACCESS_TOKEN+x}"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - run: python3 -m pip install -r scripts/requirements-checks.txt
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.5.6
+      - run: python3 scripts/check-env-pins.py
+      - run: python3 scripts/check-remote-mutations.py
+      - run: python3 scripts/check-workflow-policy.py
+      - run: python3 scripts/test-remote-guard.py
+      - run: deno test --allow-read=supabase/functions supabase/functions/_shared/env_guard_test.ts
       - run: python3 scripts/test-local-guard.py
       - run: python3 scripts/test-release-config.py
       - run: ./scripts/test-screenshot-gallery-guard.sh

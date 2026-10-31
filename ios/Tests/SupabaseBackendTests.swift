@@ -22,7 +22,10 @@ private final class TestRoute: @unchecked Sendable {
         lock.withLock { requests = []; responseBody = Data(body.utf8); responseCode = code; networkFailure = offline }
     }
     func respond(to request: URLRequest) -> (Data, Int, Bool) {
-        lock.withLock { requests.append(request); return (responseBody, responseCode, networkFailure) }
+        if request.url?.path == "/rest/v1/rpc/kizuki_environment" {
+            return (Data(#"{"environment":"local","project_ref":null}"#.utf8), 200, false)
+        }
+        return lock.withLock { requests.append(request); return (responseBody, responseCode, networkFailure) }
     }
     func captured() -> [URLRequest] { lock.withLock { requests } }
 }
