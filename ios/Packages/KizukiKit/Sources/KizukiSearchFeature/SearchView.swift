@@ -24,8 +24,7 @@ public struct SearchView: View {
 
     public var body: some View {
         VStack(spacing: 12) {
-            KizukiTopBar(title: "Search", onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
-            KizukiSearchField("Search photos & videos", text: $query).padding(.horizontal, 16)
+            KizukiSearchField("Search photos & videos", text: $query).padding(.horizontal, 16).padding(.top, 8)
             Text("Demo gallery · stock photography").font(KizukiTheme.mono(10)).foregroundStyle(KizukiTheme.babyBlueIcons)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -79,7 +78,7 @@ public struct CollabPhotoView: View {
                 Artwork(seed: photo.artSeed, height: 420).videoBadge(photo.durationLabel, large: true)
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
-                        Button { router.push(.profile(author.id)) } label: { PersonRow(id: author.id, name: author.name, subtitle: "@\(author.handle) · 3 hours ago", portraitAsset: author.portraitAsset) }.buttonStyle(.plain)
+                        Button { router.push(.profile(author.id)) } label: { PersonRow(id: author.id, name: author.name, subtitle: "@\(author.handle) · 3 hours ago", portraitAsset: author.portraitAsset, portraitData: author.portraitData) }.buttonStyle(.plain)
                     }
                     Text(photo.caption).font(KizukiTheme.body(17))
                     HStack { ForEach(photo.tags, id: \.self) { KizukiChip($0) } }

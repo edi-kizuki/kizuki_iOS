@@ -104,14 +104,62 @@ public final class AppStore {
     public var discoveryDoneCount: Int { discoverySteps.filter(\.done).count }
     public var isProfileComplete: Bool { discoverySteps.allSatisfy(\.done) }
 
-    public func saveProfileBasics(name: String, bio: String, city: String, roles: [String], availability: Availability, compensation: Compensation, goal: Goal? = nil, links: [ProfileLink]? = nil) async -> Bool {
+    public enum FeedPrompt: Identifiable, Hashable, Sendable {
+        case finishProject(UUID), reviewRequests(Int), completeProfile, startConversation(UUID)
+
+        public var id: String {
+            switch self {
+            case .finishProject: "draft"
+            case .reviewRequests: "requests"
+            case .completeProfile: "profile"
+            case .startConversation: "crew"
+            }
+        }
+    }
+
+    public var feedPrompts: [FeedPrompt] {
+        guard isLoaded else { return [] }
+        var prompts: [FeedPrompt] = []
+        if own.goal == .collaborate {
+            if let draft = projects([.draft]).first(where: isOwner) {
+                prompts.append(.finishProject(draft.id))
+            }
+            let pending = requests(.incoming).filter { $0.state == .pending }.count
+            if pending > 0 { prompts.append(.reviewRequests(pending)) }
+        }
+        if !isProfileComplete { prompts.append(.completeProfile) }
+        if own.goal == .collaborate,
+           let person = crew.first(where: { conversation(with: $0.id)?.messages.isEmpty ?? true }) {
+            prompts.append(.startConversation(person.id))
+        }
+        return prompts
+    }
+
+    public func saveProfileBasics(name: String, bio: String, city: String, roles: [String], availability: Availability, compensation: Compensation, goal: Goal? = nil, links: [ProfileLink]? = nil, portrait: ProfilePhotoUpdate = .unchanged, cover: ProfilePhotoUpdate = .unchanged) async -> Bool {
+        guard portrait.isValid, cover.isValid else { return false }
         var profile = own
+        switch portrait {
+        case .unchanged: break
+        case .remove: profile.person.portraitData = nil; profile.person.portraitAsset = nil
+        case .replace(let data): profile.person.portraitData = data; profile.person.portraitAsset = nil
+        }
+        switch cover {
+        case .unchanged: break
+        case .remove: profile.person.coverData = nil
+        case .replace(let data): profile.person.coverData = data
+        }
         if let links {
-            guard Set(links.map(\.kind)).count == links.count,
-                  links.allSatisfy({ link in
-                      own.person.links.contains { $0.kind == link.kind && $0.url == link.url } || PortfolioWidgetDescriptor(link: link).state != .invalid
-                  }) else { return false }
-            profile.person.links = links
+            guard Set(links.map(\.kind)).count == links.count else { return false }
+            var validatedLinks: [ProfileLink] = []
+            for link in links {
+                if own.person.links.contains(where: { $0.kind == link.kind && $0.url == link.url }) {
+                    validatedLinks.append(link)
+                } else {
+                    guard let url = link.kind.normalizedPortfolioURL(link.url) else { return false }
+                    validatedLinks.append(ProfileLink(kind: link.kind, title: link.title, url: url, isEnabled: link.isEnabled))
+                }
+            }
+            profile.person.links = validatedLinks
         }
         if let goal { profile.goal = goal }
         profile.person.collaborationEnabled = profile.goal == .collaborate

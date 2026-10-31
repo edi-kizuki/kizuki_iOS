@@ -69,17 +69,18 @@ public struct ReasonChips: View {
 
 public struct KizukiIconButton: View {
     let symbol: String?, icon: KizukiIcon?, label: String
+    let tint: Color
     let action: () -> Void
-    public init(symbol: String, label: String, action: @escaping () -> Void) { self.symbol = symbol; self.icon = nil; self.label = label; self.action = action }
+    public init(symbol: String, label: String, action: @escaping () -> Void) { self.symbol = symbol; self.icon = nil; self.label = label; self.action = action; self.tint = KizukiTheme.babyBlueIcons }
     /// A Kizuki vector icon (24 pt glyph in a 44 pt target).
-    public init(icon: KizukiIcon, label: String, action: @escaping () -> Void) { self.symbol = nil; self.icon = icon; self.label = label; self.action = action }
+    public init(icon: KizukiIcon, label: String, tint: Color = KizukiTheme.babyBlueIcons, action: @escaping () -> Void) { self.symbol = nil; self.icon = icon; self.label = label; self.action = action; self.tint = tint }
     public var body: some View {
         Button(action: action) {
             Group {
                 if let icon { icon.image.resizable().scaledToFit().frame(width: 24, height: 24) }
                 else if let symbol { Image(systemName: symbol).font(.system(size: 22)) }
             }
-            .frame(width: 44, height: 44).contentShape(Rectangle()).foregroundStyle(KizukiTheme.babyBlueIcons)
+            .frame(width: 44, height: 44).contentShape(Rectangle()).foregroundStyle(tint)
         }.accessibilityLabel(label)
     }
 }
@@ -131,10 +132,13 @@ public struct PersonAvatar: View {
     let id: UUID
     var size: CGFloat
     var portraitAsset: String?
-    public init(_ id: UUID, size: CGFloat = 56, portraitAsset: String? = nil) { self.id = id; self.size = size; self.portraitAsset = portraitAsset }
+    var portraitData: Data?
+    public init(_ id: UUID, size: CGFloat = 56, portraitAsset: String? = nil, portraitData: Data? = nil) { self.id = id; self.size = size; self.portraitAsset = portraitAsset; self.portraitData = portraitData }
     public var body: some View {
         Group {
-            if let portraitAsset, UIImage(named: portraitAsset, in: .module, compatibleWith: nil) != nil {
+            if let portraitData, let image = UIImage(data: portraitData) {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else if let portraitAsset, UIImage(named: portraitAsset, in: .module, compatibleWith: nil) != nil {
                 Image(portraitAsset, bundle: .module).resizable().scaledToFill()
             } else {
                 ProfileAvatar(profileID: id)
@@ -211,40 +215,31 @@ public struct SectionTitle: View {
 
 public struct PageScroll<Content: View>: View {
     let spacing: CGFloat
+    let horizontalPadding: CGFloat
+    let verticalPadding: CGFloat
     @ViewBuilder var content: Content
-    public init(spacing: CGFloat = KizukiTheme.sectionGap, @ViewBuilder content: () -> Content) { self.spacing = spacing; self.content = content() }
+    public init(spacing: CGFloat = KizukiTheme.sectionGap, horizontalPadding: CGFloat = KizukiTheme.pageInset, verticalPadding: CGFloat = KizukiTheme.pageInset, @ViewBuilder content: () -> Content) {
+        self.spacing = spacing; self.horizontalPadding = horizontalPadding; self.verticalPadding = verticalPadding; self.content = content()
+    }
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: spacing) { content }.padding(KizukiTheme.pageInset).frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: spacing) { content }
+                .padding(.horizontal, horizontalPadding).padding(.vertical, verticalPadding)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .font(KizukiTheme.body()).background(KizukiTheme.charcoal).foregroundStyle(KizukiTheme.cream).scrollDismissesKeyboard(.interactively)
     }
 }
 
-/// Top bar with the blue K (or a page title), settings gear and DM icon (decision 19).
 public struct KizukiTopBar: View {
-    let title: String
-    let onSettings: () -> Void
     let onInbox: () -> Void
-    public init(title: String = "", onSettings: @escaping () -> Void, onInbox: @escaping () -> Void) {
-        self.title = title; self.onSettings = onSettings; self.onInbox = onInbox
-    }
+    public init(onInbox: @escaping () -> Void) { self.onInbox = onInbox }
     public var body: some View {
         HStack {
-            if title.isEmpty {
-                // Figma "Feed / Discovery Page" header: the 22 x 42 blue k at the left, 5.5 pt further in than the title.
-                KizukiIcon.feedLogo.image.resizable().scaledToFit().frame(width: 22, height: 42.2346)
-                    .padding(.leading, 5.5).offset(y: -3).accessibilityLabel("Kizuki").accessibilityAddTraits(.isHeader)
-            } else {
-                Text(title).font(KizukiTheme.title(32)).accessibilityAddTraits(.isHeader)
-            }
+            KizukiIcon.feedLogo.image.resizable().scaledToFit().frame(width: 22, height: 42.2346)
+                .padding(.leading, 5.5).offset(y: -3).accessibilityLabel("Kizuki").accessibilityAddTraits(.isHeader)
             Spacer()
-            // Figma: two 24 pt icons 20 pt apart (two 44 pt targets side by side), sitting slightly below the logo's centre line.
-            HStack(spacing: 0) {
-                KizukiIconButton(icon: .settings, label: "Settings", action: onSettings)
-                KizukiIconButton(icon: .messages, label: "Messages", action: onInbox)
-            }
-            .offset(y: 7)
+            KizukiIconButton(icon: .messages, label: "Messages", tint: KizukiTheme.orange, action: onInbox).offset(y: 7)
         }
         .padding(.leading, KizukiTheme.pageInset).padding(.trailing, 13).frame(minHeight: 62)
         .background(KizukiTheme.charcoal, in: UnevenRoundedRectangle(bottomLeadingRadius: 20, bottomTrailingRadius: 20))
@@ -256,12 +251,13 @@ public struct PersonRow: View {
     let id: UUID, name: String, subtitle: String
     var trailing: String
     var portraitAsset: String?
-    public init(id: UUID, name: String, subtitle: String, trailing: String = "chevron.right", portraitAsset: String? = nil) {
-        self.id = id; self.name = name; self.subtitle = subtitle; self.trailing = trailing; self.portraitAsset = portraitAsset
+    var portraitData: Data?
+    public init(id: UUID, name: String, subtitle: String, trailing: String = "chevron.right", portraitAsset: String? = nil, portraitData: Data? = nil) {
+        self.id = id; self.name = name; self.subtitle = subtitle; self.trailing = trailing; self.portraitAsset = portraitAsset; self.portraitData = portraitData
     }
     public var body: some View {
         HStack(spacing: 14) {
-            PersonAvatar(id, size: 48, portraitAsset: portraitAsset)
+            PersonAvatar(id, size: 48, portraitAsset: portraitAsset, portraitData: portraitData)
             VStack(alignment: .leading, spacing: 4) {
                 Text(name).font(KizukiTheme.bodyMedium(17))
                 Text(subtitle).font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons).lineLimit(2)
@@ -274,10 +270,20 @@ public struct PersonRow: View {
 }
 
 public extension View {
-    func kizukiPanel() -> some View {
-        padding(KizukiTheme.cardInset)
-            .background(KizukiTheme.surface, in: RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
-            .overlay(RoundedRectangle(cornerRadius: KizukiTheme.cardRadius).stroke(KizukiTheme.border, lineWidth: 0.6))
+    func kizukiFloatingCard(padding contentPadding: CGFloat = KizukiTheme.pageInset, fill: Color = KizukiTheme.surface) -> some View {
+        let shape = RoundedRectangle(cornerRadius: KizukiTheme.cardRadius, style: .continuous)
+        return padding(contentPadding)
+            .background(fill, in: shape)
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(KizukiTheme.cream.opacity(0.08), lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.16), radius: 8, x: 0, y: 4)
+    }
+
+    func kizukiPanel(edgeToEdge: Bool = false) -> some View {
+        let radius = edgeToEdge ? 0 : KizukiTheme.cardRadius
+        return padding(edgeToEdge ? KizukiTheme.pageInset : KizukiTheme.cardInset)
+            .background(KizukiTheme.surface, in: RoundedRectangle(cornerRadius: radius))
+            .overlay(RoundedRectangle(cornerRadius: radius).stroke(KizukiTheme.border, lineWidth: 0.6))
     }
 
     /// Card surface used on baby-blue canvases (tokens: feed section card radius 20).

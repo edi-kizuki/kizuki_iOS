@@ -3,6 +3,187 @@ import XCTest
 /// Clicks through the fixture-backed prototype: entry, onboarding, every tab, and
 /// request → accept → Crew → chat. No backend is involved.
 final class PrototypeFlowUITests: XCTestCase {
+    @MainActor func testPhotoEditorPickerCancellationAndCleanHeadings() {
+        let app = launch(["-fixtures", "-screen", "profile-edit"])
+        let portrait = app.buttons["change-profile-picture"]
+        let cover = app.buttons["change-cover-photo"]
+        XCTAssertTrue(portrait.waitForExistence(timeout: 8))
+        XCTAssertFalse(app.staticTexts["Your profile basics"].exists)
+        XCTAssertTrue(cover.isHittable)
+        XCTAssertGreaterThanOrEqual(portrait.frame.height, 44)
+        XCTAssertGreaterThanOrEqual(cover.frame.height, 44)
+        portrait.tap()
+        let pickerCancel = app.navigationBars["Photos"].buttons["Cancel"]
+        XCTAssertTrue(pickerCancel.waitForExistence(timeout: 5))
+        if app.buttons["Close"].exists { app.buttons["Close"].tap() }
+        pickerCancel.tap()
+        XCTAssertTrue(app.navigationBars["Photos"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(portrait.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["remove-profile-picture"].exists)
+        cover.tap()
+        XCTAssertTrue(pickerCancel.waitForExistence(timeout: 5))
+        pickerCancel.tap()
+        XCTAssertTrue(app.navigationBars["Photos"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(cover.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["remove-cover-photo"].exists)
+        let portfolio = app.staticTexts["edit-profile-portfolio"]
+        for _ in 0..<35 {
+            let top = app.navigationBars["Edit profile"].frame.maxY + 12
+            let bottom = button(app, "Save").frame.minY - 20
+            if portfolio.isHittable && portfolio.frame.minY > top && portfolio.frame.maxY < bottom { break }
+            let reverse = portfolio.exists && portfolio.frame.height > 0 && portfolio.frame.minY < top
+            let upper = top + (bottom - top) * 0.25
+            let lower = top + (bottom - top) * 0.75
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            origin.withOffset(CGVector(dx: app.frame.midX, dy: reverse ? upper : lower))
+                .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: app.frame.midX, dy: reverse ? lower : upper)))
+        }
+        XCTAssertTrue(portfolio.isHittable)
+        XCTAssertFalse(app.staticTexts["Your links"].exists)
+        button(app, "Cancel").tap()
+    }
+
+    @MainActor func testPhotoSelectionSaveCancelAndRemove() {
+        let app = launch(["-fixtures", "-screen", "profile"])
+        button(app, "Edit profile").tap()
+        func selectPhoto(_ identifier: String) {
+            let control = app.buttons[identifier]
+            for _ in 0..<6 where !control.isHittable { app.scrollViews.firstMatch.swipeUp() }
+            control.tap()
+            XCTAssertTrue(app.navigationBars["Photos"].waitForExistence(timeout: 5))
+            if app.buttons["Close"].exists { app.buttons["Close"].tap() }
+            let photo = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Photo,'")).firstMatch
+            XCTAssertTrue(photo.waitForExistence(timeout: 5), "Simulator photo library must contain its sample images")
+            photo.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            XCTAssertTrue(app.navigationBars["Photos"].waitForNonExistence(timeout: 10))
+            let removeID = identifier == "change-profile-picture" ? "remove-profile-picture" : "remove-cover-photo"
+            XCTAssertTrue(app.buttons[removeID].waitForExistence(timeout: 10))
+        }
+        selectPhoto("change-profile-picture")
+        selectPhoto("change-cover-photo")
+        button(app, "Cancel").tap()
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.buttons["change-profile-picture"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["remove-profile-picture"].exists)
+        XCTAssertFalse(app.buttons["remove-cover-photo"].exists)
+        selectPhoto("change-profile-picture")
+        selectPhoto("change-cover-photo")
+        button(app, "Save").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
+        let saved = XCTAttachment(screenshot: app.screenshot())
+        saved.name = "Profile-custom-photos"; saved.lifetime = .keepAlways; add(saved)
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.buttons["remove-profile-picture"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["remove-cover-photo"].exists)
+        app.buttons["remove-profile-picture"].tap()
+        app.buttons["remove-cover-photo"].tap()
+        button(app, "Cancel").tap()
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.buttons["remove-profile-picture"].waitForExistence(timeout: 5))
+        app.buttons["remove-profile-picture"].tap()
+        app.buttons["remove-cover-photo"].tap()
+        button(app, "Save").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.buttons["change-profile-picture"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["remove-profile-picture"].exists)
+        XCTAssertFalse(app.buttons["remove-cover-photo"].exists)
+    }
+
+    @MainActor func testPhotoEditorAtLargestText() {
+        let app = launch(["-fixtures", "-screen", "profile-edit", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let portrait = app.buttons["change-profile-picture"]
+        XCTAssertTrue(portrait.waitForExistence(timeout: 8))
+        XCTAssertTrue(portrait.isHittable)
+        XCTAssertGreaterThanOrEqual(portrait.frame.height, 44)
+        XCTAssertLessThanOrEqual(portrait.frame.maxX, app.frame.maxX - 10)
+        XCTAssertTrue(button(app, "Save").isHittable)
+        XCTAssertFalse(app.staticTexts["Your profile basics"].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Photo-editor-largest-text"; screenshot.lifetime = .keepAlways; add(screenshot)
+    }
+
+    @MainActor private func revealFeedBanner(_ banner: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<30 {
+            let frame = banner.frame
+            let bottom = app.tabBars.firstMatch.frame.minY
+            if frame.height > 0 && frame.minY > 130 && frame.maxY < bottom && banner.isHittable { return }
+            app.scrollViews["feed-scroll"].swipeUp(velocity: .slow)
+        }
+        XCTFail("Feed banner not reachable")
+    }
+
+    @MainActor func testFeedPromptsOpenDraftRequestsAndProfileEditor() {
+        let app = launch(["-fixtures", "-screen", "home"])
+        let draft = app.buttons["feed-prompt-draft"]
+        XCTAssertTrue(draft.waitForExistence(timeout: 8))
+        XCTAssertFalse(app.staticTexts["Your next move"].exists)
+        XCTAssertGreaterThanOrEqual(draft.frame.height, 44)
+        XCTAssertLessThanOrEqual(draft.frame.height, 48)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Floating-feed-prompts"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        draft.tap()
+        XCTAssertTrue(app.navigationBars["Your project"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.firstMatch.tap()
+        let requests = app.buttons["feed-prompt-requests"]
+        revealFeedBanner(requests, in: app)
+        XCTAssertTrue(requests.isHittable)
+        requests.tap()
+        XCTAssertTrue(app.tabBars.buttons["Suki"].isSelected)
+        XCTAssertTrue(app.segmentedControls.buttons["Requests"].isSelected)
+        XCTAssertTrue(app.segmentedControls.buttons["Incoming"].isSelected)
+        app.tabBars.buttons["Home"].tap()
+        let profile = app.buttons["feed-prompt-profile"]
+        revealFeedBanner(profile, in: app)
+        XCTAssertTrue(profile.isHittable)
+        profile.tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testFeedPromptsStackAtAccessibilitySize() {
+        let app = launch(["-fixtures", "-screen", "home", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXL"])
+        let draft = app.buttons["feed-prompt-draft"]
+        let requests = app.buttons["feed-prompt-requests"]
+        XCTAssertTrue(draft.waitForExistence(timeout: 8))
+        XCTAssertFalse(app.scrollViews["feed-prompts"].exists)
+        XCTAssertFalse(app.staticTexts["Your next move"].exists)
+        XCTAssertGreaterThanOrEqual(draft.frame.minX, 10)
+        XCTAssertLessThanOrEqual(draft.frame.maxX, app.frame.maxX - 10)
+        revealFeedBanner(requests, in: app)
+        XCTAssertTrue(requests.isHittable)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Floating-feed-prompts-accessibility"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        requests.tap()
+        XCTAssertTrue(app.segmentedControls.buttons["Incoming"].isSelected)
+    }
+
+    @MainActor func testFloatingCardsAtDefaultAndAccessibilitySizes() {
+        for size in ["UICTContentSizeCategoryL", "UICTContentSizeCategoryAccessibilityXL"] {
+            for screen in ["suki-requests", "suki-create", "my-projects"] {
+                let app = launch(["-fixtures", "-screen", screen, "-UIPreferredContentSizeCategoryName", size])
+                let action: XCUIElement
+                switch screen {
+                case "suki-requests": action = app.buttons["Accept"].firstMatch
+                case "suki-create": action = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Create a project")).firstMatch
+                default: action = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Blue hour")).firstMatch
+                }
+                XCTAssertTrue(action.waitForExistence(timeout: 8))
+                XCTAssertTrue(action.isHittable)
+                XCTAssertGreaterThanOrEqual(action.frame.minX, 10)
+                XCTAssertLessThanOrEqual(action.frame.maxX, app.frame.maxX - 10)
+                let screenshot = XCTAttachment(screenshot: app.screenshot())
+                screenshot.name = "Floating-\(screen)-\(size)"
+                screenshot.lifetime = .keepAlways
+                add(screenshot)
+                app.terminate()
+            }
+        }
+    }
+
     @MainActor func testOptionalWidgetsRetainLinksWhenTurnedOff() {
         let app = launch(["-fixtures", "-screen", "profile-edit"])
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 8))
@@ -22,37 +203,75 @@ final class PrototypeFlowUITests: XCTestCase {
         }
         let widgets = [("SoundCloud", "https://soundcloud.com/artist/track"), ("Bandcamp", "https://artist.bandcamp.com/album/example"), ("TikTok", "https://www.tiktok.com/@artist")]
         for (provider, url) in widgets {
-            let toggle = app.switches["Show \(provider) widget"]
-            reveal(toggle)
-            XCTAssertEqual(toggle.value as? String, "0")
-            toggle.tap()
-            XCTAssertFalse(button(app, "Save").isEnabled)
+            let connect = button(app, "Connect \(provider)")
+            reveal(connect)
+            connect.tap()
             let field = app.textFields[provider]
-            reveal(field)
+            XCTAssertTrue(field.waitForExistence(timeout: 5))
             field.tap()
-            field.typeText(url)
+            field.typeText(String(url.dropFirst("https://".count)))
+            button(app, "Use link").tap()
+            XCTAssertTrue(app.navigationBars[provider].waitForNonExistence(timeout: 5))
+            XCTAssertTrue(button(app, "Save").isEnabled)
         }
         button(app, "Save").tap()
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
         button(app, "Edit profile").tap()
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
         for (provider, url) in widgets {
-            let toggle = app.switches["Show \(provider) widget"]
+            let toggle = app.switches["Show \(provider) on profile"]
             reveal(toggle)
             XCTAssertEqual(toggle.value as? String, "1")
             toggle.tap()
+            let edit = button(app, "Edit \(provider)")
+            reveal(edit)
+            edit.tap()
+            XCTAssertTrue(app.textFields[provider].waitForExistence(timeout: 5))
             XCTAssertEqual(app.textFields[provider].value as? String, url)
+            button(app, "Cancel").tap()
+            XCTAssertTrue(app.navigationBars[provider].waitForNonExistence(timeout: 5))
         }
         button(app, "Save").tap()
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
         button(app, "Edit profile").tap()
         XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
         for (provider, url) in widgets {
-            let toggle = app.switches["Show \(provider) widget"]
+            let toggle = app.switches["Show \(provider) on profile"]
             reveal(toggle)
             XCTAssertEqual(toggle.value as? String, "0")
+            let edit = button(app, "Edit \(provider)")
+            reveal(edit)
+            edit.tap()
+            XCTAssertTrue(app.textFields[provider].waitForExistence(timeout: 5))
             XCTAssertEqual(app.textFields[provider].value as? String, url)
+            button(app, "Cancel").tap()
+            XCTAssertTrue(app.navigationBars[provider].waitForNonExistence(timeout: 5))
         }
+    }
+
+    @MainActor func testInvalidWidgetDraftCanBeCancelledWithoutBlockingProfileSave() {
+        let app = launch(["-fixtures", "-screen", "profile-edit"])
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 8))
+        let connect = button(app, "Connect SoundCloud")
+        for _ in 0..<30 {
+            let top = app.navigationBars["Edit profile"].frame.maxY + 12
+            let bottom = button(app, "Save").frame.minY - 20
+            if connect.isHittable && connect.frame.minY > top && connect.frame.maxY < bottom { break }
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            origin.withOffset(CGVector(dx: app.frame.midX, dy: top + (bottom - top) * 0.75))
+                .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: app.frame.midX, dy: top + (bottom - top) * 0.25)))
+        }
+        connect.tap()
+        XCTAssertTrue(app.textFields["SoundCloud"].waitForExistence(timeout: 5))
+        app.textFields["SoundCloud"].tap()
+        app.textFields["SoundCloud"].typeText("https://soundcloud.com.evil.test/artist")
+        button(app, "Use link").tap()
+        XCTAssertTrue(app.staticTexts["widget-url-error"].waitForExistence(timeout: 3))
+        button(app, "Cancel").tap()
+        XCTAssertTrue(app.navigationBars["SoundCloud"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(button(app, "Save").isEnabled)
+        button(app, "Save").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
     }
     @MainActor private func launch(_ args: [String] = ["-fixtures"]) -> XCUIApplication {
         continueAfterFailure = false
@@ -86,7 +305,7 @@ final class PrototypeFlowUITests: XCTestCase {
         button(app, "Continue").tap()
         XCTAssertTrue(app.staticTexts["WHAT CATCHES YOUR EYE?"].exists)
         button(app, "Continue").tap()
-        button(app, "Continue").tap()
+        XCTAssertFalse(app.staticTexts["YOUR FAVOURITES, YOUR WORLD"].exists)
         XCTAssertTrue(app.staticTexts["WHERE DO YOU CREATE?"].exists)
         XCTAssertFalse(app.staticTexts["How do you want to work?"].exists)
         button(app, "Continue").tap()
@@ -97,6 +316,77 @@ final class PrototypeFlowUITests: XCTestCase {
         app.tabBars.buttons["Profile"].tap()
         XCTAssertTrue(app.staticTexts["Here for inspiration"].exists)
         XCTAssertFalse(app.staticTexts["I’m available to collab"].exists)
+    }
+
+    @MainActor func testFeedOwnsInboxAndProfileOwnsSettings() {
+        let app = launch(["-fixtures", "-screen", "home"])
+        XCTAssertTrue(button(app, "Messages").waitForExistence(timeout: 8))
+        XCTAssertFalse(button(app, "Settings").exists)
+        button(app, "Messages").tap()
+        XCTAssertTrue(app.navigationBars["Messages"].waitForExistence(timeout: 5))
+        app.navigationBars["Messages"].buttons.firstMatch.tap()
+        for label in ["Search", "Suki", "My Projects"] {
+            app.tabBars.buttons[label].tap()
+            XCTAssertTrue(app.tabBars.buttons[label].isSelected)
+            XCTAssertFalse(app.descendants(matching: .any)["tab-header-minimal"].exists)
+            XCTAssertFalse(app.descendants(matching: .any)["tab-header-symbol"].exists)
+            XCTAssertFalse(button(app, "Settings").exists)
+            XCTAssertFalse(button(app, "Messages").exists)
+            if label == "Search" { XCTAssertLessThan(app.textFields["Search photos & videos"].frame.minY, 120) }
+        }
+        app.tabBars.buttons["Profile"].tap()
+        XCTAssertFalse(button(app, "Messages").exists)
+        let settings = button(app, "Settings")
+        XCTAssertTrue(settings.isHittable)
+        XCTAssertGreaterThan(settings.frame.maxX, app.frame.maxX - 40)
+        XCTAssertLessThan(settings.frame.minY, 130)
+        settings.tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.segmentedControls.buttons["Symbols"].exists)
+        app.navigationBars["Settings"].buttons.firstMatch.tap()
+        XCTAssertTrue(app.tabBars.buttons["Profile"].isSelected)
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testProfileMenuAtLargestTextSize() {
+        let app = launch(["-fixtures", "-screen", "profile", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let settings = button(app, "Settings")
+        XCTAssertTrue(settings.waitForExistence(timeout: 8))
+        XCTAssertTrue(settings.isHittable)
+        XCTAssertGreaterThanOrEqual(settings.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
+        XCTAssertFalse(button(app, "Messages").exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Flush-profile-accessibility"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        settings.tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testProfileCoverReachesScreenEdges() {
+        let app = launch(["-fixtures", "-screen", "profile"])
+        let scroll = app.scrollViews["profile-scroll"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 8))
+        XCTAssertEqual(scroll.frame.minX, app.frame.minX, accuracy: 1)
+        XCTAssertEqual(scroll.frame.maxX, app.frame.maxX, accuracy: 1)
+        XCTAssertEqual(scroll.frame.minY, app.frame.minY, accuracy: 1)
+        let identity = app.otherElements["profile-identity"]
+        XCTAssertTrue(identity.exists)
+        XCTAssertEqual(identity.frame.minY, 160, accuracy: 2)
+        let settings = button(app, "Settings")
+        XCTAssertTrue(settings.isHittable)
+        XCTAssertGreaterThan(settings.frame.minY, scroll.frame.minY)
+        XCTAssertLessThanOrEqual(settings.frame.maxY, identity.frame.minY)
+        XCTAssertGreaterThanOrEqual(settings.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Flush-profile"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
     }
 
     @MainActor func testDebugDefaultAndTabBarAccessibilityScreenshots() {
@@ -126,12 +416,17 @@ final class PrototypeFlowUITests: XCTestCase {
         button(app, "I am 18 or older and agree to the Terms.").tap()
         button(app, "Continue").tap()
         // The final location primer enters the app without an extra confirmation screen.
-        for step in 1...10 {
+        for step in 1..<10 {
             let next = button(app, "Continue")
             XCTAssertTrue(next.waitForExistence(timeout: 3), "step \(step)")
-            if step == 10 || step == 11 { XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label ==[c] 'Continue'")).count, 1) }
+            if step < 9 { XCTAssertTrue(app.staticTexts["\(step) / 10"].exists) }
+            else { XCTAssertTrue(app.staticTexts["STAY IN THE LOOP"].exists) }
+            if step == 9 { XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label ==[c] 'Continue'")).count, 1) }
             next.tap()
         }
+        XCTAssertTrue(app.staticTexts["FIND YOUR NEARBY PEOPLE"].waitForExistence(timeout: 3))
+        XCTAssertFalse(button(app, "Continue").exists)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label ==[c] 'Enter Kizuki'")).count, 1)
         button(app, "Enter Kizuki").tap()
 
         XCTAssertTrue(app.staticTexts["Recommended projects"].waitForExistence(timeout: 5))
@@ -156,6 +451,18 @@ final class PrototypeFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Emil Sander"].waitForExistence(timeout: 8))
         button(app, "Accept").tap()
         // Accepting opens the chat with the new Crew member.
+        XCTAssertTrue(app.textFields["Message Emil"].waitForExistence(timeout: 5))
+        button(app, "Back").tap()
+        app.tabBars.buttons["Home"].tap()
+        let greeting = app.buttons["feed-prompt-crew"]
+        XCTAssertTrue(greeting.waitForExistence(timeout: 5))
+        revealFeedBanner(greeting, in: app)
+        XCTAssertTrue(greeting.isHittable)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Feed-new-Crew-prompt"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        greeting.tap()
         XCTAssertTrue(app.textFields["Message Emil"].waitForExistence(timeout: 5))
         let field = app.textFields["Message Emil"]
         field.tap(); field.typeText("Hello from the test")
@@ -195,6 +502,121 @@ final class PrototypeFlowUITests: XCTestCase {
         XCTAssertTrue(button(app, "Send request").waitForExistence(timeout: 5))
         button(app, "Send request").tap()
         XCTAssertTrue(app.staticTexts["Wish sent"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testProfileAvailabilityBatteryAndFloatingWidgetsAtNormalAndLargestText() {
+        for size in ["UICTContentSizeCategoryL", "UICTContentSizeCategoryAccessibilityXXXL"] {
+            let app = launch(["-fixtures", "-screen", "profile-other", "-UIPreferredContentSizeCategoryName", size])
+            let availability = app.descendants(matching: .any)["profile-availability"]
+            XCTAssertTrue(availability.waitForExistence(timeout: 8))
+            XCTAssertTrue(availability.label.contains("Sami is available to collab"), availability.label)
+            XCTAssertTrue(availability.label.contains("Low availability"), availability.label)
+            XCTAssertTrue(availability.label.contains("Under 5 hours / week"), availability.label)
+            XCTAssertFalse(availability.label.contains("Only you see"), availability.label)
+            XCTAssertGreaterThanOrEqual(availability.frame.minX, 10)
+            XCTAssertLessThanOrEqual(availability.frame.maxX, app.frame.maxX - 10)
+            XCTAssertFalse(app.staticTexts["Favourites"].exists)
+            let work = app.descendants(matching: .any)["profile-work-SoundCloud"]
+            let scroll = app.scrollViews["profile-scroll"]
+            for _ in 0..<12 where !(work.exists && work.isHittable && work.frame.maxY < app.frame.maxY - 60) {
+                scroll.swipeUp()
+            }
+            XCTAssertTrue(work.exists)
+            XCTAssertGreaterThanOrEqual(work.frame.minX, 10)
+            XCTAssertLessThanOrEqual(work.frame.maxX, app.frame.maxX - 10)
+            XCTAssertTrue(app.staticTexts["Demo link · not connected"].firstMatch.exists)
+            XCTAssertFalse(app.staticTexts["Favourites"].exists)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Profile-availability-widgets-\(size)"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            app.terminate()
+        }
+    }
+
+    @MainActor func testOwnProfileBatteryFollowsSavedAvailabilityAndLinkActionFloats() {
+        let app = launch(["-fixtures", "-screen", "profile"])
+        let availability = app.descendants(matching: .any)["profile-availability"]
+        XCTAssertTrue(availability.waitForExistence(timeout: 8))
+        XCTAssertTrue(availability.label.contains("I’m available to collab"), availability.label)
+        XCTAssertTrue(availability.label.contains("Medium availability"), availability.label)
+        XCTAssertTrue(availability.label.contains("5–9 hours / week"), availability.label)
+        XCTAssertTrue(availability.label.contains("Only you see work mode and pay preference"), availability.label)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS '5–10 hours'")).firstMatch.exists)
+        button(app, "Edit profile").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
+        func reveal(_ element: XCUIElement) {
+            for _ in 0..<35 {
+                let top = app.navigationBars["Edit profile"].frame.maxY + 12
+                let bottom = button(app, "Save").frame.minY - 20
+                if element.isHittable && element.frame.minY > top && element.frame.maxY < bottom { return }
+                let reverse = element.exists && element.frame.height > 0 && element.frame.minY < top
+                let upper = top + (bottom - top) * 0.25
+                let lower = top + (bottom - top) * 0.75
+                let origin = app.coordinate(withNormalizedOffset: .zero)
+                origin.withOffset(CGVector(dx: app.frame.midX, dy: reverse ? upper : lower))
+                    .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: app.frame.midX, dy: reverse ? lower : upper)))
+            }
+            XCTFail("Edit control not reachable: \(element.debugDescription)")
+        }
+        let high = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "10+ hours / week")).firstMatch
+        reveal(high)
+        high.tap()
+        XCTAssertTrue(high.isSelected)
+        let connect = button(app, "Connect SoundCloud")
+        reveal(connect)
+        connect.tap()
+        let field = app.textFields["SoundCloud"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("soundcloud.com/artist/track")
+        button(app, "Use link").tap()
+        XCTAssertTrue(app.navigationBars["SoundCloud"].waitForNonExistence(timeout: 5))
+        button(app, "Save").tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(availability.waitForExistence(timeout: 5))
+        XCTAssertTrue(availability.label.contains("High availability"), availability.label)
+        XCTAssertTrue(availability.label.contains("10+ hours / week"), availability.label)
+        let work = app.descendants(matching: .any)["profile-work-SoundCloud"]
+        let scroll = app.scrollViews["profile-scroll"]
+        for _ in 0..<12 where !(work.exists && work.isHittable && work.frame.maxY < app.frame.maxY - 60) {
+            scroll.swipeUp()
+        }
+        XCTAssertTrue(work.exists)
+        XCTAssertGreaterThanOrEqual(work.frame.minX, 10)
+        XCTAssertLessThanOrEqual(work.frame.maxX, app.frame.maxX - 10)
+        let open = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Open on SoundCloud'")).firstMatch
+        XCTAssertTrue(open.exists)
+        XCTAssertTrue(open.isHittable)
+        XCTAssertGreaterThanOrEqual(open.frame.height, 44)
+        XCTAssertGreaterThanOrEqual(open.frame.minX, work.frame.minX)
+        XCTAssertLessThanOrEqual(open.frame.maxX, work.frame.maxX)
+        XCTAssertTrue(app.staticTexts["SoundCloud · opens externally"].exists)
+        XCTAssertFalse(app.staticTexts["Favourites"].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Profile-own-high-availability-link"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    @MainActor func testFavouritesSurfacesAreGone() {
+        var app = launch(["-fixtures", "-screen", "settings-privacy"])
+        XCTAssertTrue(app.switches["Use taste for recommendations"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.switches["Use favourites for recommendations"].exists)
+        XCTAssertFalse(app.switches["Show favourites on my profile"].exists)
+        app.terminate()
+        app = launch(["-fixtures", "-screen", "onb-taste"])
+        XCTAssertTrue(app.staticTexts["WHAT CATCHES YOUR EYE?"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["5 / 10"].exists)
+        button(app, "Continue").tap()
+        XCTAssertFalse(app.staticTexts["YOUR FAVOURITES, YOUR WORLD"].exists)
+        XCTAssertFalse(app.textFields["Search films and music"].exists)
+        XCTAssertTrue(app.staticTexts["WHAT KIND OF WORK?"].exists)
+        XCTAssertTrue(app.staticTexts["6 / 10"].exists)
+        button(app, "Continue").tap()
+        XCTAssertTrue(app.staticTexts["HOW MUCH TIME DO YOU HAVE?"].exists)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "5–9 hours / week")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS '5–10 hours'")).firstMatch.exists)
     }
 
     @MainActor func testProjectOffersJoinProject() {

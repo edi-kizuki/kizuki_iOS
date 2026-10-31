@@ -91,7 +91,6 @@ public actor FixtureBackend: OwnProfileRepository, DirectoryRepository, ProjectR
             if person.city == ownProfile.person.city { reasons.append("Nearby") }
             if person.realm == ownProfile.person.realm { reasons.append("Same realm") } else { reasons.append("Different realm") }
             if RoleSelection.score(ownProfile.person.roles, matching: person.roles) > 0 { reasons.append("Shared roles") }
-            if ownProfile.useFavouritesForMatching, person.favourites.contains(where: ownProfile.favourites.contains) { reasons.append("Shared favourites") }
             if ownProfile.useTasteForMatching, !FixtureData.tasteCards(forPerson: index).isDisjoint(with: ownProfile.tasteCards) {
                 reasons.insert("Shared taste", at: 0)
             }
@@ -125,7 +124,7 @@ public actor FixtureBackend: OwnProfileRepository, DirectoryRepository, ProjectR
             let r = requestList[i]
             if !conversationList.contains(where: { $0.personID == r.personID }) {
                 conversationList.append(Conversation(personID: r.personID, projectTitle: projectList.first { $0.id == r.projectID }?.title,
-                                                     messages: [ChatMessage(text: "Request accepted. Welcome to the Crew!", fromMe: true)]))
+                                                     messages: []))
             }
         case .decline: requestList[i].state = .declined
         case .withdraw: requestList[i].state = .withdrawn

@@ -7,8 +7,8 @@ permissions:
   contents: read
 jobs:
   ios:
-    runs-on: macos-15
-    timeout-minutes: 30
+    runs-on: macos-15-intel
+    timeout-minutes: 90
     steps:
       - run: test -z "${SUPABASE_ACCESS_TOKEN+x}"
       - uses: actions/checkout@v4
@@ -34,6 +34,7 @@ jobs:
         with:
           name: ios-test-results
           path: .build/*.xcresult
+          include-hidden-files: true
   local-backend:
     runs-on: ubuntu-latest
     timeout-minutes: 20

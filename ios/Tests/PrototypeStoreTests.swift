@@ -4,9 +4,143 @@ import KizukiDesignSystem
 import KizukiTestSupport
 import Testing
 import UIKit
+import KizukiProfileFeature
+import ImageIO
+import UniformTypeIdentifiers
 
 @MainActor
 struct PrototypeStoreTests {
+    private func photoFixture() throws -> Data {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 2000, height: 1000)).image { context in
+            UIColor.systemBlue.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 2000, height: 1000))
+        }
+        let data = NSMutableData()
+        let destination = try #require(CGImageDestinationCreateWithData(data, UTType.jpeg.identifier as CFString, 1, nil))
+        let properties: [CFString: Any] = [kCGImagePropertyOrientation: 6,
+            kCGImagePropertyGPSDictionary: [kCGImagePropertyGPSLatitude: 52.52, kCGImagePropertyGPSLatitudeRef: "N"],
+            kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: "2026:10:28 12:00:00"]]
+        CGImageDestinationAddImage(destination, try #require(image.cgImage), properties as CFDictionary)
+        #expect(CGImageDestinationFinalize(destination))
+        return data as Data
+    }
+
+    @Test func photosAreBoundedOrientedAndMetadataFree() throws {
+        let original = try photoFixture()
+        for dimension in [512, 1600] {
+            let prepared = try ProfilePhotoProcessor.prepare(data: original, maximumDimension: dimension)
+            #expect(prepared.count <= ProfilePhotoUpdate.maximumBytes)
+            #expect(ProfilePhotoUpdate.replace(prepared).isValid)
+            let source = try #require(CGImageSourceCreateWithData(prepared as CFData, nil))
+            let properties = try #require(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any])
+            #expect(properties[kCGImagePropertyPixelHeight] as? Int == dimension)
+            #expect(properties[kCGImagePropertyPixelWidth] as? Int == dimension / 2)
+            #expect(properties[kCGImagePropertyGPSDictionary] == nil)
+            let exif = properties[kCGImagePropertyExifDictionary] as? [CFString: Any]
+            #expect(exif?[kCGImagePropertyExifDateTimeOriginal] == nil)
+        }
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try original.write(to: file)
+        #expect(try ProfilePhotoProcessor.prepare(file: file).count <= ProfilePhotoUpdate.maximumBytes)
+        #expect(throws: (any Error).self) { try ProfilePhotoProcessor.prepare(data: Data("not an image".utf8)) }
+        #expect(throws: (any Error).self) { try ProfilePhotoProcessor.prepare(data: Data(count: ProfilePhotoProcessor.maximumInputBytes + 1)) }
+        #expect(throws: (any Error).self) { try ProfilePhotoProcessor.prepare(data: original, maximumDimension: 0) }
+    }
+
+    @Test func profilePhotosSaveReloadPreserveAndRemove() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("profile.json")
+        let store = AppStore(dependencies: FixtureBackend.dependencies(storageURL: file))
+        await store.load()
+        let photo = try ProfilePhotoProcessor.prepare(data: photoFixture(), maximumDimension: 512)
+        func save(_ portrait: ProfilePhotoUpdate = .unchanged, _ cover: ProfilePhotoUpdate = .unchanged) async -> Bool {
+            await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: store.me.roles,
+                availability: store.own.availability, compensation: store.own.compensation, portrait: portrait, cover: cover)
+        }
+        #expect(await save(.replace(photo), .replace(photo)))
+        #expect(await save())
+        let reopened = AppStore(dependencies: FixtureBackend.dependencies(storageURL: file))
+        await reopened.load()
+        #expect(reopened.me.portraitData == photo)
+        #expect(reopened.me.coverData == photo)
+        #expect(reopened.me.portraitAsset == nil)
+        let previous = store.own
+        #expect(!(await save(.replace(Data(count: ProfilePhotoUpdate.maximumBytes + 1)))))
+        #expect(!(await save(.replace(Data("invalid".utf8)))))
+        #expect(store.own == previous)
+        #expect(await save(.remove, .remove))
+        let removed = AppStore(dependencies: FixtureBackend.dependencies(storageURL: file))
+        await removed.load()
+        #expect(removed.me.portraitData == nil && removed.me.coverData == nil)
+        #expect(removed.me.portraitAsset == nil)
+        var legacy = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(store.me)) as? [String: Any])
+        legacy.removeValue(forKey: "portraitData")
+        legacy.removeValue(forKey: "coverData")
+        let decoded = try JSONDecoder().decode(Person.self, from: JSONSerialization.data(withJSONObject: legacy))
+        #expect(decoded.portraitData == nil && decoded.coverData == nil)
+        #expect(decoded.id == store.me.id)
+    }
+
+    @Test func photoSaveFailureKeepsPreviousProfile() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = AppStore(dependencies: FixtureBackend.dependencies(storageURL: directory))
+        await store.load()
+        let original = store.own
+        let photo = try ProfilePhotoProcessor.prepare(data: photoFixture(), maximumDimension: 512)
+        let saved = await store.saveProfileBasics(name: "Do not persist", bio: store.me.bio, city: store.me.city, roles: store.me.roles,
+            availability: store.own.availability, compensation: store.own.compensation, portrait: .replace(photo), cover: .replace(photo))
+        #expect(!saved)
+        #expect(store.own == original)
+    }
+
+    @Test func feedPromptsReflectOwnedDraftsPendingRequestsAndIncompleteProfiles() async throws {
+        let store = AppStore(dependencies: FixtureBackend.dependencies())
+        #expect(store.feedPrompts.isEmpty)
+        await store.load()
+        let draft = try #require(store.projects([.draft]).first { store.isOwner($0) })
+        #expect(store.feedPrompts.contains(.finishProject(draft.id)))
+        let pending = store.requests(.incoming).filter { $0.state == .pending }
+        #expect(store.feedPrompts.contains(.reviewRequests(pending.count)))
+        #expect(store.feedPrompts.contains(.completeProfile))
+        #expect(Set(store.feedPrompts.map(\.id)).count == store.feedPrompts.count)
+        #expect(!store.feedPrompts.contains { $0.id == "crew" })
+        for var project in store.projects([.draft]) where store.isOwner(project) {
+            project.status = .published
+            await store.saveProject(project)
+        }
+        #expect(!store.feedPrompts.contains { $0.id == "draft" })
+        for request in pending { await store.respond(to: request.id, with: .decline) }
+        #expect(!store.feedPrompts.contains { $0.id == "requests" })
+        #expect(await store.saveProfileBasics(name: store.me.name, bio: "Making films with kind people.", city: store.me.city, roles: store.me.roles, availability: .mid, compensation: .open))
+        #expect(store.feedPrompts.isEmpty)
+    }
+
+    @Test func feedPromptsRespectSafetyAndStopAfterFirstMessage() async throws {
+        let store = await loadedStore()
+        let pending = store.requests(.incoming).filter { $0.state == .pending }
+        let request = try #require(pending.first)
+        await store.respond(to: request.id, with: .accept)
+        #expect(store.feedPrompts.contains(.startConversation(request.personID)))
+        await store.sendMessage("Hello!", to: request.personID)
+        #expect(!store.feedPrompts.contains(.startConversation(request.personID)))
+        for request in pending.dropFirst() { await store.block(request.personID) }
+        #expect(!store.feedPrompts.contains { $0.id == "requests" })
+        let anotherStore = await loadedStore()
+        await anotherStore.respond(to: request.id, with: .accept)
+        await anotherStore.block(request.personID)
+        #expect(!anotherStore.feedPrompts.contains(.startConversation(request.personID)))
+    }
+
+    @Test func inspirationFeedDoesNotNudgeCollaboration() async {
+        let store = await loadedStore()
+        #expect(await store.saveProfileBasics(name: store.me.name, bio: "Collecting creative inspiration.", city: store.me.city, roles: [], availability: .low, compensation: .open, goal: .explore))
+        #expect(store.feedPrompts.isEmpty)
+    }
+
     @Test func widgetVisibilitySurvivesColdLoadWithoutDeletingLinks() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -117,6 +251,33 @@ struct PrototypeStoreTests {
         }
         #expect(FixtureData.people[0].portraitAsset == nil)
         #expect(FixtureData.people[1].portraitAsset == "StockPortraitTwo")
+    }
+
+    @Test func providerIconsShipForEveryWidget() {
+        for kind in LinkKind.allCases {
+            #expect(ProviderIcon.hasAsset(kind.iconAsset))
+        }
+    }
+
+    @Test func portfolioURLInputNormalizesWithoutWeakeningOriginValidation() {
+        for kind in LinkKind.allCases {
+            #expect(kind.normalizedPortfolioURL(" \n" + kind.exampleURL + "\n ") == "https://" + kind.exampleURL)
+            #expect(kind.normalizedPortfolioURL("https://evil.test/" + kind.exampleURL) == nil)
+            #expect(kind.normalizedPortfolioURL("http://" + kind.exampleURL) == nil)
+        }
+        #expect(LinkKind.youtube.normalizedPortfolioURL("HTTPS://WWW.YOUTUBE.COM/@artist") == "https://www.youtube.com/@artist")
+        for url in ["", "   ", "https://youtube.com.evil.test/video", "https://youtube.com@evil.test/video", "https://user@youtube.com/video", "https://youtube.com:443/video", "javascript:alert(1)", "file:///youtube.com/video", "youtube.com/a b", "youtube.com\\@evil.test", "//youtube.com/video"] {
+            #expect(LinkKind.youtube.normalizedPortfolioURL(url) == nil)
+        }
+    }
+
+    @Test func schemelessWidgetEditsSaveAndRetainHiddenState() async {
+        let store = await loadedStore()
+        let links = [ProfileLink(kind: .soundcloud, title: "Track", url: " soundcloud.com/artist/track\n", isEnabled: false)]
+        #expect(await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: store.me.roles, availability: .mid, compensation: .open, links: links))
+        await store.load()
+        #expect(store.me.links.first?.url == "https://soundcloud.com/artist/track")
+        #expect(store.me.links.first?.isEnabled == false)
     }
 
     @Test func portfolioEditsValidateAndPersistWithoutChangingMatchingConsent() async {
@@ -251,6 +412,67 @@ struct PrototypeStoreTests {
         #expect(store.me.availability == store.own.availability)
     }
 
+    @Test func availabilityBucketsAreDistinctAndKeepStoredValues() throws {
+        #expect(Availability.low.level == .low)
+        #expect(Availability.mid.level == .medium)
+        #expect(Availability.high.level == .high)
+        #expect(Set(Availability.allCases.map(\.hoursLabel)).count == Availability.allCases.count)
+        #expect(Set(Availability.allCases.map(\.levelLabel)).count == Availability.allCases.count)
+        #expect(Availability.low.hoursLabel == "Under 5 hours / week")
+        #expect(Availability.mid.hoursLabel == "5–9 hours / week")
+        #expect(Availability.high.hoursLabel == "10+ hours / week")
+        #expect(Availability.low.levelLabel == "Low availability")
+        #expect(Availability.mid.levelLabel == "Medium availability")
+        #expect(Availability.high.levelLabel == "High availability")
+        for (stored, expected) in [("Under 5 hours / week", Availability.low), ("5–10 hours / week", .mid), ("10+ hours / week", .high)] {
+            #expect(try JSONDecoder().decode(Availability.self, from: JSONEncoder().encode(stored)) == expected)
+            #expect(try JSONDecoder().decode(String.self, from: JSONEncoder().encode(expected)) == stored)
+        }
+    }
+
+    @Test func availabilityEditsSaveAndReloadForEveryBucket() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("profile.json")
+        let store = AppStore(dependencies: FixtureBackend.dependencies(storageURL: url))
+        await store.load()
+        for availability in Availability.allCases {
+            #expect(await store.saveProfileBasics(name: store.me.name, bio: store.me.bio, city: store.me.city, roles: store.me.roles, availability: availability, compensation: store.own.compensation))
+            #expect(store.own.availability == availability)
+            #expect(store.me.availability == availability)
+            let reopened = AppStore(dependencies: FixtureBackend.dependencies(storageURL: url))
+            await reopened.load()
+            #expect(reopened.own.availability == availability)
+            #expect(reopened.me.availability == availability)
+            #expect(reopened.me.availability.level == availability.level)
+        }
+    }
+
+    @Test func legacyFavouritesStillLoadButNeverShapeSuggestions() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("profile.json")
+        let backend = FixtureBackend(storageURL: url)
+        var profile = await backend.own()
+        profile.favourites = ["Perfect Days", "Nala Sinephro"]
+        profile.person.favourites = ["Perfect Days"]
+        profile.showFavourites = true
+        profile.useFavouritesForMatching = true
+        try await backend.save(profile)
+        let reopened = FixtureBackend(storageURL: url)
+        #expect(await reopened.own() == profile)
+        let people = await reopened.recommendedPeople()
+        #expect(!people.isEmpty)
+        #expect(!people.contains { $0.reasons.contains { $0.localizedCaseInsensitiveContains("favourite") } })
+        #expect(!(await reopened.recommendedProjects()).contains { $0.reasons.contains { $0.localizedCaseInsensitiveContains("favourite") } })
+        #expect(FixtureData.people.allSatisfy { $0.favourites.isEmpty })
+        #expect(FixtureData.ownProfile.favourites.isEmpty)
+        #expect(!FixtureData.ownProfile.showFavourites && !FixtureData.ownProfile.useFavouritesForMatching)
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let script = try String(contentsOf: repo.appendingPathComponent("scripts/screenshot-gallery.sh"), encoding: .utf8)
+        #expect(!script.contains("onb-favourites"))
+    }
+
     @Test func searchContentIsPhotosAndShortVideosOnly() async {
         let store = await loadedStore()
         let videos = store.photos.filter(\.isVideo)
@@ -370,6 +592,17 @@ struct PrototypeStoreTests {
     @Test func kizukiIconAssetsShipInTheBundle() {
         for icon in KizukiIcon.allCases { #expect(icon.uiImage != nil, "missing asset \(icon.rawValue)") }
         #expect(KizukiIcon.allCases.count == 11)
+    }
+
+    @Test func originalBrandAssetsKeepTheirExportedProportions() throws {
+        let mark = try #require(KizukiIcon.kMark.uiImage)
+        let feed = try #require(KizukiIcon.feedLogo.uiImage)
+        let wordmark = try #require(KizukiIcon.wordmark.uiImage)
+        #expect(abs(mark.size.width / mark.size.height - 145.0 / 278.0) < 0.01)
+        #expect(abs(feed.size.width / feed.size.height - 22.0 / 42.2346) < 0.01)
+        #expect(abs(wordmark.size.width / wordmark.size.height - 237.0 / 92.0) < 0.01)
+        let messages = try #require(KizukiIcon.messages.uiImage)
+        #expect(messages.size.width == messages.size.height)
     }
 
     @Test func figmaFontsAndIllustrationsShipWithoutFallbacks() {

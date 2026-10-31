@@ -4,13 +4,20 @@ import Testing
 struct OnboardingCopyTests {
     @Test func inspirationSkipsCollaborationQuestionsAndNoReadyStep() {
         let explore = OnboardingStep.steps(for: .explore)
-        #expect(explore.count == 8)
+        #expect(explore.count == 7)
         #expect(!explore.contains(.roles))
         #expect(!explore.contains(.availability))
         #expect(!explore.contains(.compensation))
-        #expect(OnboardingStep.steps(for: .collaborate).count == 11)
+        #expect(OnboardingStep.steps(for: .collaborate).count == 10)
         #expect(OnboardingStep.allCases.last == .location)
         #expect(EntryScreen(id: "onb-ready") == nil)
+    }
+
+    @Test func favouritesStepIsGone() {
+        #expect(!OnboardingStep.allCases.map(\.id).contains("favourites"))
+        #expect(EntryScreen(id: "onb-favourites") == nil)
+        #expect(EntryScreen.all.count == 13)
+        #expect(OnboardingStep.steps(for: .collaborate).map(\.id) == ["handle", "goal", "realm", "roles", "taste", "compensation", "availability", "city", "primer-notifications", "primer-location"])
     }
     /// Decision 51: availability is public on every profile, so onboarding must not call it private.
     @Test func availabilityCopyStatesItIsPublic() {

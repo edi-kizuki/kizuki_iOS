@@ -15,6 +15,10 @@ public enum KizukiTheme {
     public static let salmon = Color(hex: 0xFAC5B8)
     public static let ink = Color(hex: 0x371F1D)
 
+    public static let availabilityHigh = Color(hex: 0x30D158)
+    public static let availabilityMedium = yellow
+    public static let availabilityLow = Color(hex: 0xFF453A)
+
     // Names kept from the foundation build.
     public static let canvas = charcoal
     public static let surface = darkGrey
@@ -22,6 +26,7 @@ public enum KizukiTheme {
     public static let spacing: CGFloat = 24
     public static let pageInset: CGFloat = 20
     public static let cardInset: CGFloat = 16
+    public static let floatingCardInset: CGFloat = 12
     public static let sectionGap: CGFloat = 24
     public static let border = babyBlueIcons.opacity(0.35)
 

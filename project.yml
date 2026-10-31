@@ -108,6 +108,8 @@ targets:
         product: KizukiOnboardingFeature
       - package: KizukiKit
         product: KizukiSukiFeature
+      - package: KizukiKit
+        product: KizukiProfileFeature
   KizukiUITests:
     type: bundle.ui-testing
     platform: iOS

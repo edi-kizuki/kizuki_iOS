@@ -1,4 +1,5 @@
 import KizukiCore
+import KizukiDesignSystem
 import KizukiTestSupport
 import SwiftUI
 import Testing
@@ -7,6 +8,13 @@ import UIKit
 
 @MainActor
 struct CrewCardTests {
+    @Test func crewMedusaShipsWithItsOriginalAspectRatioAndTransparency() throws {
+        let image = try #require(KizukiIllustration.crewMedusa.uiImage?.cgImage)
+        #expect(image.width == 190)
+        #expect(image.height == 125)
+        #expect(image.alphaInfo != .none && image.alphaInfo != .noneSkipFirst && image.alphaInfo != .noneSkipLast)
+    }
+
     @Test func crewCardGrowsForLongNamesAndAccessibilityXL() async throws {
         let store = AppStore(dependencies: FixtureBackend.dependencies())
         await store.load()

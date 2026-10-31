@@ -9,27 +9,12 @@ public struct HomeView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     public init() {}
 
-    private var draft: Project? { store.projects([.draft]).first { $0.ownerID == store.me.id } }
-
     public var body: some View {
         VStack(spacing: 0) {
-            KizukiTopBar(onSettings: { router.push(.settings) }, onInbox: { router.push(.inbox) })
+            KizukiTopBar(onInbox: { router.push(.inbox) })
             ScrollView {
                 VStack(spacing: 20) {
-                    if store.own.goal == .collaborate, store.own.intent == .start, let draft {
-                        Button { router.push(.project(draft.id)) } label: {
-                            HStack {
-                                Image(systemName: "pencil.and.outline")
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Finish your project").font(KizukiTheme.bodyMedium(17))
-                                    Text(draft.title).font(KizukiTheme.mono(11))
-                                }
-                                Spacer(); Image(systemName: "arrow.right")
-                            }
-                            .padding(20).foregroundStyle(KizukiTheme.cream).background(KizukiTheme.blue, in: RoundedRectangle(cornerRadius: KizukiTheme.cardRadius))
-                        }
-                        .buttonStyle(.plain).padding(.horizontal, 12)
-                    }
+                    if let prompt = store.feedPrompts.first { promptBanner(prompt) }
                     VStack(alignment: .leading, spacing: 16) {
                         SectionTitle("Recommended projects")
                         if store.visibleProjectRecommendations.isEmpty {
@@ -44,6 +29,7 @@ public struct HomeView: View {
                         }
                     }
                     .kizukiCard().padding(.horizontal, 12)
+                    if store.feedPrompts.count > 1 { promptBanner(store.feedPrompts[1]) }
                     VStack(alignment: .leading, spacing: 16) {
                         SectionTitle("People that you might like")
                         if store.visiblePeopleRecommendations.isEmpty {
@@ -53,7 +39,7 @@ public struct HomeView: View {
                             ForEach(store.visiblePeopleRecommendations.prefix(9), id: \.item.id) { rec in
                                 Button { router.push(.profile(rec.item.id)) } label: {
                                     VStack(spacing: 6) {
-                                        PersonAvatar(rec.item.id, size: 72, portraitAsset: rec.item.portraitAsset)
+                                        PersonAvatar(rec.item.id, size: 72, portraitAsset: rec.item.portraitAsset, portraitData: rec.item.portraitData)
                                         Text(rec.item.name).font(KizukiTheme.bodyMedium(13)).multilineTextAlignment(.center)
                                         Text(rec.item.primaryRole).font(KizukiTheme.body(12)).foregroundStyle(KizukiTheme.babyBlueIcons).multilineTextAlignment(.center)
                                         ReasonChips(Array(rec.reasons.prefix(1)))
@@ -65,12 +51,67 @@ public struct HomeView: View {
                         }
                     }
                     .kizukiCard().padding(.horizontal, 12)
+                    ForEach(Array(store.feedPrompts.dropFirst(2))) { promptBanner($0) }
                 }
                 .padding(.vertical, 20)
             }
+            .accessibilityIdentifier("feed-scroll")
             .background(KizukiTheme.babyBlue)
         }
         .background(KizukiTheme.charcoal)
+    }
+
+    private func promptBanner(_ prompt: AppStore.FeedPrompt) -> some View {
+        let content = promptContent(prompt)
+        return Button { open(prompt) } label: {
+            HStack(spacing: 10) {
+                Image(systemName: content.symbol).font(.system(size: 15))
+                    .foregroundStyle(KizukiTheme.blue)
+                    .accessibilityHidden(true)
+                Text(content.title).font(KizukiTheme.body(14))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.right").font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(KizukiTheme.charcoal.opacity(0.6))
+                    .accessibilityHidden(true)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .padding(.horizontal, 12)
+            .foregroundStyle(KizukiTheme.charcoal)
+            .background(KizukiTheme.blue.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("feed-prompt-\(prompt.id)")
+        .accessibilityLabel("\(content.title). \(content.detail)")
+        .accessibilityHint(content.action)
+        .padding(.horizontal, KizukiTheme.floatingCardInset)
+    }
+
+    private func promptContent(_ prompt: AppStore.FeedPrompt) -> (title: String, detail: String, action: String, symbol: String) {
+        switch prompt {
+        case .finishProject(let id):
+            ("Finish your project", store.project(id)?.title ?? "Pick up where you left off.", "Continue draft", "pencil.and.outline")
+        case .reviewRequests(let count):
+            ("\(count) collab \(count == 1 ? "request" : "requests")", "See who wants to make something with you.", "Review requests", "person.badge.plus")
+        case .completeProfile:
+            ("A little more about you", "Finish your profile so people can get to know you.", "Finish profile", "person.crop.circle")
+        case .startConversation(let id):
+            ("Say hello to \(store.person(id)?.firstName ?? "your new connection")", "Start a conversation with your new Crew connection.", "Say hello", "bubble.left.and.bubble.right")
+        }
+    }
+
+    private func open(_ prompt: AppStore.FeedPrompt) {
+        switch prompt {
+        case .finishProject(let id): router.push(.project(id))
+        case .reviewRequests:
+            router.tab = .suki
+            router.sukiSection = .requests
+            router.showsSentRequests = false
+            router.popToRoot()
+        case .completeProfile: router.sheet = .editProfile
+        case .startConversation(let id): router.openConversation(with: id)
+        }
     }
 }
 
@@ -91,6 +132,7 @@ public struct ProjectCard: View {
                 .padding(12).frame(maxWidth: .infinity, alignment: .leading).background(KizukiTheme.grey)
             }
             .foregroundStyle(KizukiTheme.cream)
+            .clipShape(RoundedRectangle(cornerRadius: KizukiTheme.cardRadius, style: .continuous))
         }
         .buttonStyle(.plain).accessibilityLabel("Open project, \(project.title)")
     }
