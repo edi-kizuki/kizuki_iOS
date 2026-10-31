@@ -14,14 +14,15 @@ final class PrototypeFlowUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(cover.frame.height, 44)
         portrait.tap()
         let pickerCancel = app.navigationBars["Photos"].buttons["Cancel"]
-        XCTAssertTrue(pickerCancel.waitForExistence(timeout: 5))
+        // The system PHPicker can take well over 5s to present its nav bar on loaded CI runners.
+        XCTAssertTrue(pickerCancel.waitForExistence(timeout: 15))
         if app.buttons["Close"].exists { app.buttons["Close"].tap() }
         pickerCancel.tap()
         XCTAssertTrue(app.navigationBars["Photos"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(portrait.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["remove-profile-picture"].exists)
         cover.tap()
-        XCTAssertTrue(pickerCancel.waitForExistence(timeout: 5))
+        XCTAssertTrue(pickerCancel.waitForExistence(timeout: 15))
         pickerCancel.tap()
         XCTAssertTrue(app.navigationBars["Photos"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(cover.waitForExistence(timeout: 5))
@@ -50,7 +51,8 @@ final class PrototypeFlowUITests: XCTestCase {
             let control = app.buttons[identifier]
             for _ in 0..<6 where !control.isHittable { app.scrollViews.firstMatch.swipeUp() }
             control.tap()
-            XCTAssertTrue(app.navigationBars["Photos"].waitForExistence(timeout: 5))
+            // The system PHPicker can take well over 5s to present its nav bar on loaded CI runners.
+            XCTAssertTrue(app.navigationBars["Photos"].waitForExistence(timeout: 15))
             if app.buttons["Close"].exists { app.buttons["Close"].tap() }
             let photo = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Photo,'")).firstMatch
             XCTAssertTrue(photo.waitForExistence(timeout: 5), "Simulator photo library must contain its sample images")

@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 config="${1:?usage: check-release-build.sh Staging|Release}"
 case "$config" in
   Staging) scheme=Kizuki-Staging; environment=staging; host=ankgfqkgflcalmlreetu.supabase.co ;;
-  Release) scheme=Kizuki-Production; environment=production; host=enosggckdxjiaqtxalhg.supabase.co ;;
+  Release) scheme=Kizuki-Production; environment=production; host=disabled.invalid ;;
   *) echo "Unknown configuration: $config" >&2; exit 2 ;;
 esac
 # Production is deliberately unbuildable in v0. Verify the real Xcode prebuild barrier.

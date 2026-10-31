@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 
 BUNDLE_ID = "club.kizuki.ios"  # decision 43: one app identity
-HOSTS = {"staging": "ankgfqkgflcalmlreetu.supabase.co", "production": "enosggckdxjiaqtxalhg.supabase.co"}
+HOSTS = {"staging": "ankgfqkgflcalmlreetu.supabase.co", "production": ""}
 
 # Type, module and launch-argument names that exist only in fixture or Debug code (matches mangled Swift symbols too).
 FORBIDDEN_SYMBOLS = [b"FixtureBackend", b"FixtureData", b"FixtureIDs", b"FixtureAvatarIDs", b"UITestBackend", b"PrototypeRoot",
@@ -47,6 +47,7 @@ def code_bytes(path):
 def inspect_app(app, expected_environment):
     app = Path(app)
     problems = []
+    if expected_environment == "production": problems.append("production disabled")
     info_path = app / "Info.plist"
     if not info_path.is_file():
         return ["Info.plist missing"]

@@ -29,7 +29,7 @@ public struct FoundationRoot: View {
                     sessionContent(session)
                 } else {
                     Image(systemName: "wrench.and.screwdriver").font(.largeTitle).accessibilityHidden(true)
-                    Text("Setup needed").font(.title.bold()).accessibilityIdentifier("configurationTitle")
+                    Text("This build can’t connect to its server").font(.title.bold()).accessibilityIdentifier("backend-refused")
                     Text(configurationError ?? "Check this build’s configuration.")
                     Text("Add local backend configuration, then relaunch the app.")
                         .foregroundStyle(.secondary)

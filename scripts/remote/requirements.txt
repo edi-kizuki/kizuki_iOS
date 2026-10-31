@@ -1,0 +1,2 @@
+# Related: [[014-b03-environment-pinning]]. Install in an isolated venv before B20.
+psycopg[binary]==3.2.13
