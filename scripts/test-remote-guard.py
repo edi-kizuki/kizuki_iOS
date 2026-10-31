@@ -94,6 +94,7 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(result.returncode, 78); self.assertEqual(result.stderr.strip(), "refused: E_OVERRIDE")
         self.assertEqual(self.wrapper(["unknown"]).returncode, 78)
         self.assertEqual(self.wrapper(["doctor"]).returncode, 0)
+        self.assertEqual(list((self.root / "scripts/remote").rglob("*.pyc")), [])
 
     def test_G2_environment_overrides_including_lowercase_and_empty(self):
         for key in ["SUPABASE_PROJECT_ID", "SUPABASE_DB_URL", "DATABASE_URL", "PGHOST", "PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE", "PGOPTIONS", "PGPASSFILE", "PGPASSWORD"]:
@@ -145,6 +146,12 @@ class GatewayTests(unittest.TestCase):
             self.refuses("E_NOT_PRISTINE", lambda: guard.state(dict(pristine(), **changes)))
         self.refuses("E_MARKER_ABSENT", lambda: self.run_fake(["migrate"], pristine()))
         sql, _, _, _ = self.run_fake(["migrate"], staging()); self.assertIn("migrate", sql.calls)
+
+    def test_migration_history_must_be_an_ordered_repo_prefix(self):
+        versions = [m[0] for m in remote.migrations(self.root)]
+        for applied in [["unknown"], versions[1:]]:
+            value = staging(); value["versions"] = applied
+            self.refuses("E_MIGRATIONS", lambda: self.run_fake(["migrate"], value))
 
     def test_G7_witness_and_exact_transaction_and_second_bootstrap(self):
         self.refuses("E_WITNESS", lambda: self.run_fake(["bootstrap"], pristine()))

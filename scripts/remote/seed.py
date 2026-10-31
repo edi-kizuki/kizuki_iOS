@@ -4,6 +4,8 @@ import json
 import os
 import sys
 from urllib.parse import urlsplit
+sys.dont_write_bytecode = True
+
 from kz_guard import Refused, require, state, static_checks, STAGING_API_HOST, denied
 
 

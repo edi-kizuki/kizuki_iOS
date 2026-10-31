@@ -10,6 +10,8 @@ import urllib.error
 import urllib.request
 import ssl
 
+sys.dont_write_bytecode = True
+
 from kz_guard import (ROOT, PIN, BOOTSTRAP_SHA256, STAGING_REF, STAGING_API_HOST,
                       Refused, require, static_checks, state, jwt, denied)
 
@@ -172,13 +174,15 @@ def run(argv, env, root=ROOT, home=None, driver_factory=SqlDriver, api_factory=A
         snapshot = driver.snapshot()
         current = state(snapshot)
         versions = [m[0] for m in sql_files]
-        require(all(v in versions for v in snapshot["versions"]), "E_MIGRATIONS")
+        require(snapshot["versions"] == versions[:len(snapshot["versions"])], "E_MIGRATIONS")
         if command == "verify":
             print("state=" + current)
             print("witness=" + snapshot["fingerprint"])
             print("migrations=" + ("current" if snapshot["versions"] == versions else "pending"))
             settings = api.call("/auth/v1/settings")
             print("auth_email_enabled=" + str(settings.get("external", {}).get("email") is True).lower())
+            print("auth_signup_enabled=" + str(settings.get("disable_signup") is False).lower())
+            print("auth_email_confirmation_required=" + str(settings.get("mailer_autoconfirm") is False).lower())
             print("Dashboard-only auth settings require B20 smoke verification.")
         elif command == "bootstrap":
             require(current == "S0", "E_MARKER_WRONG")
