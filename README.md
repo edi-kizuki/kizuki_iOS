@@ -2,19 +2,28 @@
 
 Native iOS app for Kizuki. SwiftUI, iOS 17+, Supabase backend.
 
+Related: [[DEVELOPMENT]], [[AGENTS]].
+
 ## Requirements
 
-- Xcode 26 and an iOS simulator
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-- Supabase CLI and a Docker engine (for the local backend)
+- A Mac with full Xcode 26.0.1 and an iOS simulator runtime. CI uses iPhone 17 Pro.
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) 2.46.0 or newer.
+- [Homebrew](https://brew.sh) for the installation command below, or install XcodeGen manually.
+- For the optional local backend: Docker, Node.js 24 with npm/npx, and Python 3.10 or newer. The wrapper downloads Supabase CLI 2.122.0; a global CLI installation is unnecessary.
 
-## Setup
+## Open and run
+
+Clone the repository using a GitHub account with repository access. Run these commands from its root:
 
 ```sh
-./scripts/generate-project.sh      # generate the Xcode project from project.yml
-./scripts/supabase-local.sh start  # local Supabase stack
-./scripts/check-ios.sh             # build and run the test suite
+brew install xcodegen
+./scripts/generate-project.sh
+open ios/Kizuki.xcodeproj
 ```
+
+Select **Kizuki-Local**, choose an iPhone simulator, and press **Run**. Debug launches show the sample-data prototype by default. This needs no backend, credentials, Apple Developer team, or private configuration. The first build needs internet access to resolve pinned Swift packages.
+
+For real local Supabase, follow [local backend setup](DEVELOPMENT.md#local-backend). That setup includes the required database reset/bootstrap and client configuration steps. [Development setup](DEVELOPMENT.md) also covers tools, tests, troubleshooting, signing, and staging access.
 
 ## Layout
 
@@ -32,7 +41,7 @@ Local and staging only. Release builds refuse the production backend.
 
 October 28 development, validation and remaining delivery gates: [[Development wrap-up 2026-10-28]] (`ios/Development wrap-up 2026-10-28.md`).
 
-Future assisted commits use Edison Abdiel's GitHub identity, [@edisonabdiel](https://github.com/edisonabdiel):
+Agent-assisted commits use Edison Abdiel's GitHub identity, [@edisonabdiel](https://github.com/edisonabdiel). Teammates should keep their own identity for their own commits. Agents use:
 
 ```sh
 git config --local user.name "Edison Abdiel"
