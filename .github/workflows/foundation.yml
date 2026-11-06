@@ -16,6 +16,11 @@ jobs:
         with:
           xcode-version: '26.0.1'
       - run: brew install xcodegen
+      # Finish first-boot setup before compilation/test runner startup. Keep this
+      # device aligned with KIZUKI_TEST_DESTINATION below. -b also boots it if needed.
+      - name: Wait for iOS simulator boot
+        timeout-minutes: 5
+        run: xcrun simctl bootstatus 'iPhone 17 Pro' -b
       - name: Build and test Local scheme
         env:
           KIZUKI_TEST_DESTINATION: platform=iOS Simulator,name=iPhone 17 Pro
