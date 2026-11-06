@@ -1,6 +1,19 @@
 import XCTest
 
 final class FoundationUITests: XCTestCase {
+    @MainActor func testA13RefusedConfigurationPrecedesFixtureAndLiveComposition() {
+        for mode in ["-fixtures", "-live"] {
+            let app = XCUIApplication()
+            app.launchArguments = ["--ui-testing-refused", mode,
+                "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+            app.launch()
+            XCTAssertTrue(app.staticTexts["backend-refused"].waitForExistence(timeout: 5))
+            XCTAssertFalse(app.textFields["Email"].exists)
+            XCTAssertFalse(app.tabBars.firstMatch.exists)
+            app.terminate()
+        }
+    }
+
     @MainActor func testSignedOutEntryAtAccessibilitySize() {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]

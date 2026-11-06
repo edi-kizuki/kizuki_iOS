@@ -8,6 +8,9 @@ import SwiftUI
 struct LiveRoot: View {
     let session: AppSession
     let dependencies: Dependencies
+    @State private var backendRefused = false
+    @State private var backendReady = false
+    @State private var launchAttempt = 0
     @State private var connectionStatus: String?
     @State private var checkingConnection = false
     @State private var email = ""
@@ -19,7 +22,15 @@ struct LiveRoot: View {
 
     var body: some View {
         Group {
-            if session.phase == .main, let scope = session.scope {
+            if backendRefused {
+                VStack(spacing: 16) {
+                    Text("This build can’t connect to its server").accessibilityIdentifier("backend-refused")
+                    Text("Check your connection and try again.")
+                    Button("Try again") { backendRefused = false; launchAttempt += 1 }
+                }.padding()
+            } else if !backendReady {
+                ProgressView("Connecting…")
+            } else if session.phase == .main, let scope = session.scope {
                 LiveTabs(session: session, dependencies: dependencies, scope: scope)
                     .id(scope.generation)
             } else if session.phase == .entry, let backend {
@@ -50,7 +61,7 @@ struct LiveRoot: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            if let backend {
+            if backendReady, let backend {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Live · \(backend.environment.rawValue.capitalized)").font(.headline)
                     Button(checkingConnection ? "Checking…" : "Check connection") {
@@ -67,7 +78,13 @@ struct LiveRoot: View {
                 .accessibilityIdentifier("liveConnectionStatus")
             }
         }
-        .task { await session.observe() }
+        .task(id: launchAttempt) {
+            do {
+                try await backend?.prepare()
+                backendReady = true
+                await session.observe()
+            } catch { backendRefused = true }
+        }
     }
 }
 

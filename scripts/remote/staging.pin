@@ -1,0 +1,9 @@
+# Related: [[014-b03-environment-pinning]], [[2026-10-31-staging-connection-handoff]].
+project_ref=ankgfqkgflcalmlreetu
+api_host=ankgfqkgflcalmlreetu.supabase.co
+pooler_host=aws-0-eu-west-1.pooler.supabase.com
+pooler_port=6543
+session_port=5432
+database=postgres
+user=postgres.ankgfqkgflcalmlreetu
+denied_ref=enosggckdxjiaqtxalhg

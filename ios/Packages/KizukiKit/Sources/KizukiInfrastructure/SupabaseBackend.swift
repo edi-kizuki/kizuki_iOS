@@ -4,27 +4,26 @@ import Supabase
 
 /// Shared SDK instance: auth and PostgREST use the same refreshed session.
 public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendable {
-    private let client: SupabaseClient
+    private let gate: ProbedClient
     private let restoreTimeout: Duration
     private let configuration: AppConfiguration
-    private let transport: URLSession
+    private let transport: GuardedTransport
     public var environment: AppEnvironment { configuration.environment }
 
     public init(configuration: AppConfiguration) {
         self.configuration = configuration
-        transport = .shared
+        transport = GuardedTransport(configuration: configuration)
         restoreTimeout = .seconds(10)
-        self.client = Self.makeClient(configuration: configuration,
-                                      storage: KeychainLocalStorage(service: "club.kizuki.ios.auth"),
-                                      session: .shared)
+        gate = ProbedClient(configuration: configuration,
+                            storage: { KeychainLocalStorage(service: "club.kizuki.ios.auth") }, transport: transport)
     }
 
     /// Explicit injection for isolated SDK transport tests; never changes the live initializer.
     public init(configuration: AppConfiguration, storage: any AuthLocalStorage, session: URLSession, restoreTimeout: Duration = .seconds(10)) {
         self.configuration = configuration
-        transport = session
+        transport = GuardedTransport(configuration: configuration, session: session)
         self.restoreTimeout = restoreTimeout
-        self.client = Self.makeClient(configuration: configuration, storage: storage, session: session)
+        gate = ProbedClient(configuration: configuration, storage: { storage }, transport: transport)
     }
 
     #if DEBUG
@@ -37,27 +36,17 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
     }
     #endif
 
-    private static func makeClient(configuration: AppConfiguration, storage: any AuthLocalStorage,
-                                   session: URLSession) -> SupabaseClient {
-        SupabaseClient(supabaseURL: configuration.supabaseURL, supabaseKey: configuration.publishableKey,
-                       options: .init(auth: .init(storage: storage,
-                                                  storageKey: configuration.sessionStorageKey,
-                                                  flowType: .pkce, autoRefreshToken: true,
-                                                  emitLocalSessionAsInitialSession: true),
-                                      global: .init(session: session, logger: nil)))
-    }
+    public func prepare() async throws { _ = try await gate.client() }
 
-    /// Stops SDK token-refresh work. Call when the backend is discarded (tests) or the app is backgrounded.
-    public func stopBackgroundRefresh() {
-        let auth = client.auth
-        Task { await auth.stopAutoRefresh() }
-    }
+    public func stopBackgroundRefresh() { Task { await gate.stop() } }
 
     public func signIn(email: String, password: String) async throws {
+        let client = try await gate.client()
         _ = try await client.auth.signIn(email: email, password: password)
     }
 
     public func connectionStatus() async -> String {
+        do { try await prepare() } catch { return "This build can’t connect to its server." }
         let endpoints = [
             ("Auth settings", "/auth/v1/settings"),
             ("Database API", "/rest/v1/"),
@@ -70,7 +59,7 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
             request.setValue(configuration.publishableKey, forHTTPHeaderField: "apikey")
             request.cachePolicy = .reloadIgnoringLocalCacheData
             do {
-                let (_, response) = try await transport.data(for: request)
+                let (_, response) = try await transport.session.data(for: request)
                 guard let response = response as? HTTPURLResponse else {
                     results.append("\(name): unavailable")
                     continue
@@ -87,10 +76,14 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
     /// B04 calls AppSession.beginPasswordRecovery() before invoking this method.
     /// SDK 2.55.4 _verifyOTP emits signedIn only, including when type == recovery.
     public func verifyPasswordRecoveryCode(email: String, code: String) async throws {
+        let client = try await gate.client()
         _ = try await client.auth.verifyOTP(email: email, token: code, type: .recovery)
     }
 
     public func events() async -> AsyncStream<SessionEvent> {
+        let client: SupabaseClient
+        do { client = try await gate.client() }
+        catch { return AsyncStream { $0.yield(.unavailable) } }
         let upstream = client.auth.authStateChanges
         return AsyncStream { continuation in
             let task = Task {
@@ -143,6 +136,7 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
     }
 
     public func signOut() async throws {
+        let client = try await gate.client()
         // Local SDK scope clears this device's Keychain session, never all devices.
         do {
             try await client.auth.signOut(scope: .local)
@@ -155,6 +149,7 @@ public final class SupabaseBackend: SessionRepository, ProfileRepository, Sendab
     }
 
     public func ownProfile(for userID: UUID) async throws -> Profile? {
+        let client = try await gate.client()
         // Refresh if needed before querying. A locally supplied UUID is never authorization.
         let session = try await client.auth.session
         guard session.user.id == userID else { throw BackendError.identityMismatch }

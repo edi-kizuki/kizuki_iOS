@@ -22,6 +22,22 @@ struct KizukiApp: App {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         launchScreen = arguments.firstIndex(of: "-screen").flatMap { arguments.indices.contains($0 + 1) ? arguments[$0 + 1] : nil }
+        // Validate the compiled environment before either fixture or live composition.
+        // Fixtures use no credential; only their environment and URL are checked here.
+        do {
+            let values = Bundle.main.infoDictionary?.compactMapValues { $0 as? String } ?? [:]
+            guard let environment = AppEnvironment(rawValue: arguments.contains("--ui-testing-refused") ? "production" : values["KizukiEnvironment"] ?? "") else {
+                throw ConfigurationError.invalidEnvironment
+            }
+            _ = try AppConfiguration(environment: environment, url: values["SupabaseURL"] ?? "",
+                                     publishableKey: "sb_publishable_fixture_no_network")
+        } catch {
+            _prototypeStore = State(initialValue: nil)
+            _session = State(initialValue: nil)
+            configurationError = "This build can’t connect to its server."
+            liveDependencies = nil
+            return
+        }
         if !arguments.contains("--ui-testing"), arguments.contains("-fixtures") || !arguments.contains("-live") {
             let ephemeral = arguments.contains("-fixtures") || launchScreen != nil || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
             _prototypeStore = State(initialValue: AppStore(dependencies: FixtureBackend.dependencies(storageURL: ephemeral ? nil : FixtureBackend.runtimeStorageURL)))
